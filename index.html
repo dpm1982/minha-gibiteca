@@ -136,14 +136,12 @@
 
     <!-- TELA DE LEITURA -->
     <section id="reader-screen" class="fixed inset-0 bg-black z-50 hide flex flex-col">
-        <!-- Controles Superiores do Leitor -->
-        <div id="reader-header" class="absolute top-0 w-full bg-gradient-to-b from-black/80 to-transparent p-4 flex justify-between items-center transition-opacity z-10">
-            <button onclick="Reader.close()" class="text-white bg-gray-800/80 px-4 py-2 rounded-lg backdrop-blur-sm">← Voltar</button>
-            <div id="reader-title" class="text-sm font-semibold truncate px-4 hidden sm:block">Carregando...</div>
-            <div class="flex items-center gap-4">
-                <div id="reader-progress-text" class="text-xs bg-gray-800/80 px-3 py-1 rounded-full">0 / 0</div>
-                <button onclick="App.toggleFullScreen()" class="text-white hover:text-gray-300 transition-colors text-2xl font-bold px-2">⛶</button>
-            </div>
+        
+        <!-- Controles Superiores do Leitor (Discretos e sem barra de fundo) -->
+        <div id="reader-header" class="absolute top-0 w-full p-4 flex justify-between items-start transition-opacity z-10 pointer-events-none">
+            <button onclick="Reader.close()" class="text-gray-400 hover:text-white text-3xl drop-shadow-md pointer-events-auto" title="Voltar">←</button>
+            <div id="reader-title" class="text-sm font-semibold truncate px-4 hidden sm:block text-gray-400 drop-shadow-md">Carregando...</div>
+            <button onclick="App.toggleFullScreen()" class="text-gray-400 hover:text-white transition-colors text-2xl font-bold px-2 drop-shadow-md pointer-events-auto" title="Tela Cheia">⛶</button>
         </div>
 
         <!-- Container da Imagem -->
@@ -158,10 +156,18 @@
             <img id="comic-page" src="" alt="Página" class="max-w-full max-h-full object-contain pointer-events-none hide">
         </div>
         
-        <!-- Barra de Progresso Inferior -->
-        <div class="absolute bottom-0 w-full h-1 bg-gray-800">
-            <div id="reader-progress-bar" class="h-full bg-blue-500" style="width: 0%"></div>
+        <!-- Controles Inferiores (Contador e Barra de Progresso) -->
+        <div class="absolute bottom-0 w-full z-10 pointer-events-none">
+            <!-- Indicador de Página (Canto Inferior Direito) -->
+            <div class="flex justify-end px-2 pb-1">
+                <div id="reader-progress-text" class="text-[10px] sm:text-xs text-gray-400 bg-black/60 px-2 py-0.5 rounded backdrop-blur-sm drop-shadow-md pointer-events-auto">0 / 0</div>
+            </div>
+            <!-- Barra de Progresso (Fina, colada na borda inferior) -->
+            <div class="w-full h-1 bg-gray-800/50">
+                <div id="reader-progress-bar" class="h-full bg-blue-500" style="width: 0%"></div>
+            </div>
         </div>
+
     </section>
 
     <!-- LÓGICA DA APLICAÇÃO -->
@@ -867,14 +873,14 @@
                             <img src="${coverSrc}" class="absolute inset-0 w-full h-full object-cover" alt="Capa ${comic.name}">
                         </div>
                         
-                        <!-- Metadados da Revista -->
-                        <div class="p-2 flex-1 flex flex-col justify-between">
+                        <!-- Metadados da Revista (Tudo agrupado bem próximo) -->
+                        <div class="p-2 flex flex-col gap-1">
                             <h3 class="text-xs sm:text-sm font-bold truncate" title="${comic.name}">${comic.name.replace(/\.cbz|\.cbr|\.zip|\.rar/gi, '')}</h3>
-                            <div class="mt-2 w-full">
+                            <div class="w-full mt-1">
                                 <div class="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
                                     <div class="h-full bg-blue-500" style="width: ${comic.progress || 0}%"></div>
                                 </div>
-                                <p class="text-[10px] sm:text-xs text-gray-400 mt-1 text-right">${comic.progress || 0}%</p>
+                                <p class="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 text-right leading-none">${comic.progress || 0}%</p>
                             </div>
                         </div>
                     `;
