@@ -241,8 +241,9 @@
                 }
 
                 const view = new google.picker.DocsView(google.picker.ViewId.DOCS);
-                view.setMimeTypes('application/zip,application/x-zip-compressed,application/vnd.comicbook+zip,application/x-cbz,application/x-cbr,application/vnd.comicbook-rar,application/x-rar-compressed,application/rar');
-                
+                view.setIncludeFolders(true); // Permite navegar pelas pastas do Drive livremente
+                // Removendo o filtro estrito de MimeTypes para evitar que o Google esconda arquivos mal classificados
+                // view.setMimeTypes('application/zip,application/x-zip-compressed,application/vnd.comicbook+zip,application/x-cbz,application/x-cbr,application/vnd.comicbook-rar,application/x-rar-compressed,application/rar');
                 const picker = new google.picker.PickerBuilder()
                     .addView(view)
                     .setOAuthToken(this.accessToken)
