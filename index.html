@@ -11,9 +11,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#111827">
 
-    <!-- Configuração PWA (Manifesto e Ícone) -->
+    <!-- Configuração PWA (Manifesto e Ícone SVG) -->
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icon.svg">
 
     <!-- Bibliotecas Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -103,8 +104,11 @@
 
         <!-- Container da Imagem (Onde o Hammer.js atua) -->
         <div id="reader-container" class="flex-1 w-full h-full flex items-center justify-center relative">
-            <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-black hide">
-                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-black hide z-20">
+                <div class="flex flex-col items-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+                    <span class="text-white text-sm">Baixando e extraindo do Drive...</span>
+                </div>
             </div>
             <!-- Imagem base do quadrinho -->
             <img id="comic-page" src="" alt="Página" class="max-w-full max-h-full object-contain pointer-events-none hide">
@@ -120,6 +124,7 @@
     <script>
         /**
          * CONFIGURAÇÕES DO GOOGLE (Preencha com os dados do seu Google Cloud Console)
+         * CUIDADO: Substitua os valores abaixo com as suas credenciais reais!
          */
         const GOOGLE_CONFIG = {
             CLIENT_ID: '1073647170468-alkgv60idbapacpttvikj6r6pejlsaod.apps.googleusercontent.com',
@@ -219,6 +224,9 @@
                     callback: (tokenResponse) => {
                         if (tokenResponse && tokenResponse.access_token) {
                             this.accessToken = tokenResponse.access_token;
+                            // Injetando o token para permitir que a biblioteca GAPI faça buscas (capas sidecar)
+                            gapi.client.setToken({ access_token: this.accessToken });
+                            
                             document.getElementById('auth-btn').innerText = 'Conectado';
                             document.getElementById('auth-btn').classList.replace('bg-blue-600', 'bg-green-600');
                         }
@@ -241,9 +249,9 @@
                 }
 
                 const view = new google.picker.DocsView(google.picker.ViewId.DOCS);
-                view.setIncludeFolders(true); // Permite navegar pelas pastas do Drive livremente
-                // Removendo o filtro estrito de MimeTypes para evitar que o Google esconda arquivos mal classificados
-                // view.setMimeTypes('application/zip,application/x-zip-compressed,application/vnd.comicbook+zip,application/x-cbz,application/x-cbr,application/vnd.comicbook-rar,application/x-rar-compressed,application/rar');
+                // Permite ver pastas para evitar o bug de arquivos ocultos do Google Drive
+                view.setIncludeFolders(true); 
+                
                 const picker = new google.picker.PickerBuilder()
                     .addView(view)
                     .setOAuthToken(this.accessToken)
@@ -272,17 +280,17 @@
                     name: fileName,
                     shelf: App.currentShelf,
                     currentPage: 1,
-                    totalPages: 0, // Será atualizado na primeira leitura
+                    totalPages: 0,
                     progress: 0,
                     coverBlob: null // Base64 da capa
                 };
 
-                // Tenta buscar o Sidecar Image (ex: arquivo.cbz -> arquivo.jpg)
+                // Tenta buscar o Sidecar Image (ex: arquivo.cbz -> arquivo.jpg ou .png)
                 try {
                     const baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-                    // NOTA: Para rodar esta query na prática, precisamos do GAPI carregado
+                    // NOTA: Agora com a query agrupada em parênteses para OR funcionar corretamente com o AND
                     const response = await gapi.client.drive.files.list({
-                        q: `name='${baseName}.jpg' or name='${baseName}.png' and '${parentId}' in parents`,
+                        q: `(name='${baseName}.jpg' or name='${baseName}.png') and '${parentId}' in parents`,
                         fields: 'files(id, name)'
                     });
 
@@ -290,12 +298,12 @@
                         const coverId = response.result.files[0].id;
                         // Faz download da imagem menor
                         const coverFile = await gapi.client.drive.files.get({ fileId: coverId, alt: 'media' });
-                        // Converte para blob/base64
+                        // Converte para blob/base64 dependendo do formato (assumindo JPEG genérico, navegador resolve)
                         const base64 = btoa(new Uint8Array(coverFile.body).reduce((data, byte) => data + String.fromCharCode(byte), ''));
                         comicData.coverBlob = `data:image/jpeg;base64,${base64}`;
                     } else {
-                        console.log("Capa sidecar não encontrada. Utilizando placeholder genérico ou forçando extração do CBZ.");
-                        comicData.coverBlob = 'placeholder'; // Na versão real, baixa 1MB do CBZ para extrair a 1ª página.
+                        console.log("Capa sidecar não encontrada. Utilizando placeholder genérico.");
+                        comicData.coverBlob = 'placeholder'; 
                     }
                 } catch (error) {
                     console.error("Erro ao buscar sidecar:", error);
@@ -306,10 +314,17 @@
             },
 
             async downloadFile(fileId) {
-                // Em produção: fetch na API do Drive usando o accessToken
-                // `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
                 console.log(`Baixando arquivo ${fileId} do Drive...`);
-                return new ArrayBuffer(0); // Mock
+                // Requisição nativa com token injetado para obter o arquivo binário (ArrayBuffer)
+                const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                    headers: { 'Authorization': `Bearer ${this.accessToken}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Falha no download da API do Drive.');
+                }
+                
+                return await response.arrayBuffer();
             }
         };
 
@@ -318,7 +333,7 @@
          */
         const Reader = {
             currentComicId: null,
-            pages: [], // Array de Blobs/Base64
+            pages: [], // Array de URLs de Objeto em Memória
             currentIndex: 0,
             
             // Variáveis de Gestos
@@ -342,27 +357,67 @@
 
                 this.setupGestures();
 
-                // Simulando descompactação (Em produção, usaria o jszip no arrayBuffer baixado do Drive)
+                // Lógica de extração e conversão do CBZ (ou mock)
                 if (App.isMockMode) {
                     this.mockExtract(comic);
                 } else {
-                    // Lógica real de extração
-                    // const buffer = await Drive.downloadFile(comic.id);
-                    // const zip = await JSZip.loadAsync(buffer);
-                    // this.pages = iterar zip.files -> extrair ordenado
+                    try {
+                        if (comic.name.toLowerCase().endsWith('.cbr')) {
+                            // JSZip não suporta arquivos RAR puros de forma nativa/leve.
+                            alert('Aviso: O formato .cbr (baseado em RAR) não pode ser descompactado diretamente no navegador. Por favor, recompacte suas revistas para formato .zip e mude a extensão para .cbz.');
+                            this.close();
+                            return;
+                        }
+
+                        // 1. Baixa o buffer do arquivo inteiro do Google Drive
+                        const buffer = await Drive.downloadFile(comic.id);
+                        
+                        // 2. Extrai usando JSZip
+                        const zip = await JSZip.loadAsync(buffer);
+                        
+                        // 3. Filtra apenas os arquivos que são imagens (ignora metadados ocultos/pastas)
+                        const imageFiles = Object.keys(zip.files).filter(name => name.match(/\.(jpg|jpeg|png|gif|webp)$/i));
+                        
+                        // 4. Ordena alfabeticamente (vital para garantir a ordem correta de leitura)
+                        imageFiles.sort(); 
+
+                        // 5. Converte para URLs Locais do navegador (Blobs)
+                        this.pages = [];
+                        for (const filename of imageFiles) {
+                            const fileData = await zip.files[filename].async("blob");
+                            // Cria um link de memória super rápido para renderizar a imagem
+                            this.pages.push(URL.createObjectURL(fileData)); 
+                        }
+
+                        if (this.pages.length === 0) {
+                            alert('O arquivo foi aberto, mas não encontramos imagens legíveis dentro dele.');
+                            this.close();
+                            return;
+                        }
+
+                        // Atualiza os dados de leitura e exibe
+                        comic.totalPages = this.pages.length;
+                        this.currentIndex = comic.currentPage > 0 ? comic.currentPage - 1 : 0;
+                        
+                        document.getElementById('loading-spinner').classList.add('hide');
+                        document.getElementById('comic-page').classList.remove('hide');
+                        
+                        this.renderPage();
+                    } catch (error) {
+                        console.error('Erro ao abrir quadrinho:', error);
+                        alert('Erro ao carregar ou descompactar o arquivo. Verifique sua internet, permissões ou se o arquivo .cbz está corrompido.');
+                        this.close();
+                    }
                 }
             },
 
             mockExtract(comic) {
                 setTimeout(() => {
-                    // Cria páginas falsas para teste
                     this.pages = Array.from({length: 10}, (_, i) => `https://picsum.photos/800/1200?random=${comic.id}${i}`);
                     comic.totalPages = this.pages.length;
                     this.currentIndex = comic.currentPage > 0 ? comic.currentPage - 1 : 0;
-                    
                     document.getElementById('loading-spinner').classList.add('hide');
                     document.getElementById('comic-page').classList.remove('hide');
-                    
                     this.renderPage();
                 }, 1000);
             },
@@ -374,13 +429,13 @@
                 // Reseta zoom ao trocar de página
                 this.resetZoom();
 
-                // Atualiza UI
+                // Atualiza UI de progresso
                 const current = this.currentIndex + 1;
                 const total = this.pages.length;
                 document.getElementById('reader-progress-text').innerText = `${current} / ${total}`;
                 document.getElementById('reader-progress-bar').style.width = `${(current / total) * 100}%`;
 
-                // Salva progresso no IndexedDB
+                // Salva progresso no IndexedDB em background
                 this.saveProgress(current, total);
             },
 
@@ -391,18 +446,23 @@
                     comic.totalPages = total;
                     comic.progress = Math.round((current / total) * 100);
                     await DB.saveComic(comic);
-                    // Não chamamos UI.loadComics aqui para não recarregar a library em background sem necessidade
                 }
             },
 
             close() {
+                // Limpa a memória das imagens quando fechar o leitor
+                if (!App.isMockMode && this.pages.length > 0) {
+                    this.pages.forEach(url => URL.revokeObjectURL(url));
+                    this.pages = [];
+                }
+
                 document.getElementById('reader-screen').classList.add('hide');
                 document.getElementById('library-screen').classList.remove('hide');
                 UI.loadComics(); // Recarrega para mostrar barra de progresso atualizada
             },
 
             setupGestures() {
-                if (this.hammer) return; // Já configurado
+                if (this.hammer) return; 
 
                 const container = document.getElementById('reader-container');
                 const img = document.getElementById('comic-page');
@@ -411,7 +471,7 @@
                 this.hammer.get('pinch').set({ enable: true });
                 this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL });
 
-                // Swipe lateral para trocar de página
+                // Swipe para trocar de página
                 this.hammer.on('swipeleft', () => {
                     if (this.scale === 1 && this.currentIndex < this.pages.length - 1) {
                         this.currentIndex++;
@@ -433,7 +493,7 @@
                     this.applyTransform(img);
                 });
 
-                // Pan para mover quando estiver com Zoom
+                // Pan (Arrastar a página com zoom)
                 this.hammer.on('panstart', () => {
                     this.lastTranslateX = this.translateX;
                     this.lastTranslateY = this.translateY;
@@ -446,12 +506,12 @@
                     }
                 });
 
-                // Duplo Toque para resetar ou dar zoom rápido
+                // Duplo Toque para resetar/ampliar
                 this.hammer.on('doubletap', () => {
                     if (this.scale > 1) {
                         this.resetZoom();
                     } else {
-                        this.scale = 2; // Zoom padrão
+                        this.scale = 2; // Zoom padrão automático
                         this.applyTransform(img);
                     }
                 });
@@ -478,7 +538,6 @@
         const Backup = {
             async export() {
                 const comics = await DB.getAllComics();
-                // Limpa os Blobs de imagem pesados do backup, salvamos apenas metadados
                 const exportData = comics.map(c => ({
                     id: c.id,
                     name: c.name,
@@ -506,20 +565,14 @@
                     try {
                         const importedComics = JSON.parse(e.target.result);
                         for (const comic of importedComics) {
-                            // Algoritmo de Reconciliação Inteligente:
-                            // 1. Tenta buscar pelo ID local primeiro
                             const existing = await DB.getComic(comic.id);
                             
                             if (existing) {
-                                // Atualiza metadados, mantendo a capa local
                                 existing.currentPage = comic.currentPage;
                                 existing.progress = comic.progress;
                                 existing.shelf = comic.shelf;
                                 await DB.saveComic(existing);
                             } else {
-                                // 2. Se não existir, insere o registro. 
-                                // O app buscará a capa (sidecar) na nuvem na próxima vez que conectar ao Drive,
-                                // usando o nome do arquivo, pois o ID do Drive na nova conta pode ter mudado.
                                 await DB.saveComic(comic);
                                 console.log(`Restaurado metadata de: ${comic.name}`);
                             }
@@ -548,7 +601,6 @@
             changeShelf(shelfName) {
                 App.currentShelf = shelfName;
                 
-                // Atualiza visual das abas
                 document.querySelectorAll('.shelf-tab').forEach(tab => {
                     if(tab.innerText === shelfName) {
                         tab.classList.replace('text-gray-400', 'text-blue-400');
@@ -564,7 +616,7 @@
 
             renderGrid() {
                 const grid = document.getElementById('comics-grid');
-                grid.innerHTML = ''; // Limpa
+                grid.innerHTML = ''; 
 
                 const filtered = App.comics.filter(c => c.shelf === App.currentShelf);
 
@@ -574,25 +626,26 @@
                 }
 
                 filtered.forEach(comic => {
-                    // Caso a capa ainda não tenha sido gerada (sidecar pendente)
                     const coverSrc = comic.coverBlob && comic.coverBlob !== 'placeholder' 
                                      ? comic.coverBlob 
                                      : 'https://via.placeholder.com/300x450/374151/9CA3AF?text=Sem+Capa';
 
                     const card = document.createElement('div');
-                    card.className = 'bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer transform hover:scale-105 transition-transform';
+                    card.className = 'bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer transform hover:scale-105 transition-transform flex flex-col';
                     card.onclick = () => Reader.open(comic.id);
                     
                     card.innerHTML = `
                         <div class="relative pb-[150%]">
                             <img src="${coverSrc}" class="absolute top-0 left-0 w-full h-full object-cover" alt="Capa ${comic.name}">
                         </div>
-                        <div class="p-2">
+                        <div class="p-2 flex-1 flex flex-col justify-between">
                             <h3 class="text-sm font-bold truncate" title="${comic.name}">${comic.name.replace(/\.cbz|\.cbr/gi, '')}</h3>
-                            <div class="mt-2 h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
-                                <div class="h-full bg-blue-500" style="width: ${comic.progress || 0}%"></div>
+                            <div class="mt-2 w-full">
+                                <div class="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-blue-500" style="width: ${comic.progress || 0}%"></div>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1 text-right">${comic.progress || 0}%</p>
                             </div>
-                            <p class="text-xs text-gray-400 mt-1 text-right">${comic.progress || 0}%</p>
                         </div>
                     `;
                     grid.appendChild(card);
@@ -607,11 +660,10 @@
             await DB.init();
             UI.loadComics();
             
-            // Tenta inicializar APIs do Google se as chaves existirem
             setTimeout(() => { Drive.init(); }, 1000); 
         };
 
-        // Função auxiliar para injetar dados falsos para você testar a UI agora mesmo no Canvas
+        // Função auxiliar para injetar dados falsos para testes de UI
         App.loadMockData = async () => {
             App.isMockMode = true;
             document.getElementById('config-warning').classList.add('hide');
