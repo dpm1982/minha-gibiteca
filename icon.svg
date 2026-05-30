@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Gradiente de fundo para combinar com o tema Tailwind #111827 -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1f2937" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+    
+    <!-- Sombra para dar profundidade de aplicativo nativo -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Fundo do App (Rounded Square, padrão iOS/Android) -->
+  <rect width="512" height="512" rx="115" fill="url(#bg-grad)" />
+
+  <!-- Explosão estilo Quadrinhos (Action Burst) -->
+  <g filter="url(#shadow)">
+    <path d="M256 60 L290 140 L380 120 L350 200 L440 230 L360 280 L420 360 L320 330 L280 430 L220 340 L120 400 L150 300 L60 260 L140 210 L80 130 L180 160 Z" 
+          fill="#facc15" stroke="#b45309" stroke-width="12" stroke-linejoin="round" />
+  </g>
+
+  <!-- Balão de Fala Clássico -->
+  <path d="M140 260 C140 180, 200 150, 270 150 C360 150, 390 200, 390 260 C390 320, 320 350, 270 350 C250 350, 210 360, 180 390 C190 360, 190 330, 180 320 C150 290, 140 280, 140 260 Z" 
+        fill="#ffffff" stroke="#1e3a8a" stroke-width="14" stroke-linejoin="round" />
+
+  <!-- Símbolo de Trovão / Ação no centro -->
+  <path d="M280 180 L230 260 L260 260 L240 330 L310 240 L280 240 Z" 
+        fill="#ef4444" stroke="#7f1d1d" stroke-width="6" stroke-linejoin="round" />
+
+  <!-- Elementos de movimento (Halftone/Dots) -->
+  <circle cx="110" cy="110" r="8" fill="#ef4444" />
+  <circle cx="410" cy="150" r="10" fill="#3b82f6" />
+  <circle cx="390" cy="400" r="12" fill="#ef4444" />
+  <circle cx="130" cy="380" r="6" fill="#3b82f6" />
+</svg>

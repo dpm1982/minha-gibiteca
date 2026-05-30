@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minha Gibiteca PWA</title>
+    
+    <!-- Meta tags para PWA (Tela cheia no Android/iOS) -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#111827">
+
+    <!-- Configuração PWA (Manifesto e Ícone) -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <!-- Bibliotecas Externas -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    
+    <!-- APIs do Google -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+
+    <style>
+        /* Estilos personalizados essenciais que o Tailwind não cobre nativamente */
+        body {
+            overscroll-behavior-y: none; /* Previne o 'pull-to-refresh' no Android */
+            background-color: #111827;
+            color: #f3f4f6;
+        }
+        
+        /* Oculta barras de rolagem para uma experiência mais limpa */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
+
+        /* Estilos do Leitor */
+        #reader-container {
+            touch-action: none; /* CRUCIAL para o Hammer.js funcionar sem conflito com o scroll do navegador */
+            overflow: hidden;
+        }
+        
+        #comic-page {
+            transition: transform 0.1s ease-out; /* Suaviza o zoom/pan */
+            transform-origin: center center;
+            will-change: transform;
+        }
+
+        .hide { display: none !important; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col font-sans overflow-hidden">
+
+    <!-- AVISO DE CONFIGURAÇÃO (Aparece se as chaves do Google não estiverem preenchidas) -->
+    <div id="config-warning" class="bg-yellow-600 text-white p-3 text-sm text-center hide">
+        Atenção: Configure seu CLIENT_ID e API_KEY no código para usar o Google Drive real. 
+        <button onclick="App.loadMockData()" class="ml-4 underline font-bold">Usar Dados de Teste</button>
+    </div>
+
+    <!-- TELA INICIAL: GIBITECA -->
+    <main id="library-screen" class="flex-1 flex flex-col h-full">
+        <!-- Cabeçalho -->
+        <header class="bg-gray-800 p-4 shadow-md flex justify-between items-center z-10">
+            <h1 class="text-xl font-bold tracking-wider">GIBITECA</h1>
+            <div class="flex gap-4">
+                <button onclick="Backup.export()" class="text-sm bg-gray-700 px-3 py-1 rounded hover:bg-gray-600">Exportar Backup</button>
+                <button onclick="document.getElementById('import-file').click()" class="text-sm bg-gray-700 px-3 py-1 rounded hover:bg-gray-600">Importar</button>
+                <input type="file" id="import-file" class="hidden" accept=".json" onchange="Backup.import(event)">
+                <button id="auth-btn" class="bg-blue-600 hover:bg-blue-500 px-4 py-1 rounded font-semibold transition-colors">Conectar Drive</button>
+            </div>
+        </header>
+
+        <!-- Navegação de Estantes (Tabs) -->
+        <nav class="bg-gray-900 border-b border-gray-700 overflow-x-auto whitespace-nowrap px-4 py-2 flex gap-6">
+            <button class="shelf-tab text-blue-400 font-bold border-b-2 border-blue-400 pb-1" onclick="UI.changeShelf('Marvel')">Marvel</button>
+            <button class="shelf-tab text-gray-400 font-bold hover:text-gray-200 pb-1" onclick="UI.changeShelf('DC')">DC</button>
+            <button class="shelf-tab text-gray-400 font-bold hover:text-gray-200 pb-1" onclick="UI.changeShelf('Vertigo')">Vertigo</button>
+            <button class="shelf-tab text-gray-400 font-bold hover:text-gray-200 pb-1" onclick="UI.changeShelf('Mangas')">Mangás</button>
+        </nav>
+
+        <!-- Grid de Quadrinhos -->
+        <div id="comics-grid" class="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <!-- Cards gerados via JavaScript -->
+        </div>
+
+        <!-- Botão Flutuante (Adicionar do Drive) -->
+        <button id="add-comic-btn" class="fixed bottom-6 right-6 bg-blue-600 w-14 h-14 rounded-full shadow-lg text-white text-3xl font-light flex items-center justify-center hover:bg-blue-500 hover:scale-105 transition-transform z-20">
+            +
+        </button>
+    </main>
+
+    <!-- TELA DE LEITURA (Oculta por padrão) -->
+    <section id="reader-screen" class="fixed inset-0 bg-black z-50 hide flex flex-col">
+        <!-- Controles Superiores do Leitor -->
+        <div id="reader-header" class="absolute top-0 w-full bg-gradient-to-b from-black/80 to-transparent p-4 flex justify-between items-center transition-opacity z-10">
+            <button onclick="Reader.close()" class="text-white bg-gray-800/80 px-4 py-2 rounded-lg backdrop-blur-sm">← Voltar</button>
+            <div id="reader-title" class="text-sm font-semibold truncate px-4">Carregando...</div>
+            <div id="reader-progress-text" class="text-xs bg-gray-800/80 px-3 py-1 rounded-full">0 / 0</div>
+        </div>
+
+        <!-- Container da Imagem (Onde o Hammer.js atua) -->
+        <div id="reader-container" class="flex-1 w-full h-full flex items-center justify-center relative">
+            <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-black hide">
+                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+            <!-- Imagem base do quadrinho -->
+            <img id="comic-page" src="" alt="Página" class="max-w-full max-h-full object-contain pointer-events-none hide">
+        </div>
+        
+        <!-- Barra de Progresso Inferior -->
+        <div class="absolute bottom-0 w-full h-1 bg-gray-800">
+            <div id="reader-progress-bar" class="h-full bg-blue-500" style="width: 0%"></div>
+        </div>
+    </section>
+
+    <!-- LÓGICA DA APLICAÇÃO -->
+    <script>
+        /**
+         * CONFIGURAÇÕES DO GOOGLE (Preencha com os dados do seu Google Cloud Console)
+         */
+        const GOOGLE_CONFIG = {
+            CLIENT_ID: 'SEU_CLIENT_ID_AQUI.apps.googleusercontent.com',
+            API_KEY: 'SUA_API_KEY_AQUI',
+            APP_ID: 'SEU_APP_ID',
+            SCOPES: 'https://www.googleapis.com/auth/drive.file'
+        };
+
+        // Estado Global da Aplicação
+        const App = {
+            currentShelf: 'Marvel',
+            comics: [],
+            isMockMode: false
+        };
+
+        /**
+         * 1. LÓGICA DE DADOS (IndexedDB)
+         */
+        const DB = {
+            db: null,
+            init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('GibitecaDB', 1);
+                    
+                    request.onupgradeneeded = (e) => {
+                        this.db = e.target.result;
+                        if (!this.db.objectStoreNames.contains('comics')) {
+                            // keyPath é o ID do Drive
+                            this.db.createObjectStore('comics', { keyPath: 'id' });
+                        }
+                    };
+                    
+                    request.onsuccess = (e) => {
+                        this.db = e.target.result;
+                        resolve();
+                    };
+                    request.onerror = (e) => reject('Erro no IndexedDB');
+                });
+            },
+
+            async saveComic(comicData) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('comics', 'readwrite');
+                    const store = tx.objectStore('comics');
+                    store.put(comicData);
+                    tx.oncomplete = resolve;
+                    tx.onerror = reject;
+                });
+            },
+
+            async getAllComics() {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('comics', 'readonly');
+                    const store = tx.objectStore('comics');
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = reject;
+                });
+            },
+
+            async getComic(id) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('comics', 'readonly');
+                    const store = tx.objectStore('comics');
+                    const request = store.get(id);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = reject;
+                });
+            }
+        };
+
+        /**
+         * 2. LÓGICA DO GOOGLE DRIVE (Autenticação e API)
+         */
+        const Drive = {
+            tokenClient: null,
+            accessToken: null,
+
+            init() {
+                if (GOOGLE_CONFIG.CLIENT_ID.includes('SEU_CLIENT_ID')) {
+                    document.getElementById('config-warning').classList.remove('hide');
+                    return; // Interrompe se não houver config real
+                }
+
+                // Inicia o cliente GAPI
+                gapi.load('client:picker', async () => {
+                    await gapi.client.init({
+                        apiKey: GOOGLE_CONFIG.API_KEY,
+                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+                    });
+                });
+
+                // Inicia o cliente de Identidade (Token para OAuth 2.0)
+                this.tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: GOOGLE_CONFIG.CLIENT_ID,
+                    scope: GOOGLE_CONFIG.SCOPES,
+                    callback: (tokenResponse) => {
+                        if (tokenResponse && tokenResponse.access_token) {
+                            this.accessToken = tokenResponse.access_token;
+                            document.getElementById('auth-btn').innerText = 'Conectado';
+                            document.getElementById('auth-btn').classList.replace('bg-blue-600', 'bg-green-600');
+                        }
+                    },
+                });
+
+                document.getElementById('auth-btn').onclick = () => this.login();
+                document.getElementById('add-comic-btn').onclick = () => this.openPicker();
+            },
+
+            login() {
+                this.tokenClient.requestAccessToken({ prompt: 'consent' });
+            },
+
+            openPicker() {
+                if (!this.accessToken) {
+                    alert('Por favor, conecte-se ao Drive primeiro.');
+                    this.login();
+                    return;
+                }
+
+                const view = new google.picker.DocsView(google.picker.ViewId.DOCS);
+                view.setMimeTypes('application/zip,application/x-zip-compressed,application/vnd.comicbook+zip,application/x-cbz');
+                
+                const picker = new google.picker.PickerBuilder()
+                    .addView(view)
+                    .setOAuthToken(this.accessToken)
+                    .setDeveloperKey(GOOGLE_CONFIG.API_KEY)
+                    .setCallback(this.pickerCallback.bind(this))
+                    .build();
+                picker.setVisible(true);
+            },
+
+            async pickerCallback(data) {
+                if (data.action === google.picker.Action.PICKED) {
+                    const doc = data.docs[0];
+                    console.log('Selecionado:', doc);
+                    await this.processNewComic(doc);
+                }
+            },
+
+            // Lógica Central: Sidecar Cover
+            async processNewComic(driveDoc) {
+                const fileId = driveDoc.id;
+                const fileName = driveDoc.name;
+                const parentId = driveDoc.parentId; // Necessita escopo correto no Picker para retornar
+
+                const comicData = {
+                    id: fileId,
+                    name: fileName,
+                    shelf: App.currentShelf,
+                    currentPage: 1,
+                    totalPages: 0, // Será atualizado na primeira leitura
+                    progress: 0,
+                    coverBlob: null // Base64 da capa
+                };
+
+                // Tenta buscar o Sidecar Image (ex: arquivo.cbz -> arquivo.jpg)
+                try {
+                    const baseName = fileName.substring(0, fileName.lastIndexOf('.'));
+                    // NOTA: Para rodar esta query na prática, precisamos do GAPI carregado
+                    const response = await gapi.client.drive.files.list({
+                        q: `name='${baseName}.jpg' or name='${baseName}.png' and '${parentId}' in parents`,
+                        fields: 'files(id, name)'
+                    });
+
+                    if (response.result.files && response.result.files.length > 0) {
+                        const coverId = response.result.files[0].id;
+                        // Faz download da imagem menor
+                        const coverFile = await gapi.client.drive.files.get({ fileId: coverId, alt: 'media' });
+                        // Converte para blob/base64
+                        const base64 = btoa(new Uint8Array(coverFile.body).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+                        comicData.coverBlob = `data:image/jpeg;base64,${base64}`;
+                    } else {
+                        console.log("Capa sidecar não encontrada. Utilizando placeholder genérico ou forçando extração do CBZ.");
+                        comicData.coverBlob = 'placeholder'; // Na versão real, baixa 1MB do CBZ para extrair a 1ª página.
+                    }
+                } catch (error) {
+                    console.error("Erro ao buscar sidecar:", error);
+                }
+
+                await DB.saveComic(comicData);
+                await UI.loadComics();
+            },
+
+            async downloadFile(fileId) {
+                // Em produção: fetch na API do Drive usando o accessToken
+                // `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
+                console.log(`Baixando arquivo ${fileId} do Drive...`);
+                return new ArrayBuffer(0); // Mock
+            }
+        };
+
+        /**
+         * 3. LÓGICA DE LEITURA E TOUCH (JSZip + Hammer.js)
+         */
+        const Reader = {
+            currentComicId: null,
+            pages: [], // Array de Blobs/Base64
+            currentIndex: 0,
+            
+            // Variáveis de Gestos
+            hammer: null,
+            scale: 1,
+            lastScale: 1,
+            translateX: 0,
+            translateY: 0,
+            lastTranslateX: 0,
+            lastTranslateY: 0,
+
+            async open(comicId) {
+                this.currentComicId = comicId;
+                const comic = await DB.getComic(comicId);
+                
+                document.getElementById('library-screen').classList.add('hide');
+                document.getElementById('reader-screen').classList.remove('hide');
+                document.getElementById('reader-title').innerText = comic.name;
+                document.getElementById('loading-spinner').classList.remove('hide');
+                document.getElementById('comic-page').classList.add('hide');
+
+                this.setupGestures();
+
+                // Simulando descompactação (Em produção, usaria o jszip no arrayBuffer baixado do Drive)
+                if (App.isMockMode) {
+                    this.mockExtract(comic);
+                } else {
+                    // Lógica real de extração
+                    // const buffer = await Drive.downloadFile(comic.id);
+                    // const zip = await JSZip.loadAsync(buffer);
+                    // this.pages = iterar zip.files -> extrair ordenado
+                }
+            },
+
+            mockExtract(comic) {
+                setTimeout(() => {
+                    // Cria páginas falsas para teste
+                    this.pages = Array.from({length: 10}, (_, i) => `https://picsum.photos/800/1200?random=${comic.id}${i}`);
+                    comic.totalPages = this.pages.length;
+                    this.currentIndex = comic.currentPage > 0 ? comic.currentPage - 1 : 0;
+                    
+                    document.getElementById('loading-spinner').classList.add('hide');
+                    document.getElementById('comic-page').classList.remove('hide');
+                    
+                    this.renderPage();
+                }, 1000);
+            },
+
+            renderPage() {
+                const img = document.getElementById('comic-page');
+                img.src = this.pages[this.currentIndex];
+                
+                // Reseta zoom ao trocar de página
+                this.resetZoom();
+
+                // Atualiza UI
+                const current = this.currentIndex + 1;
+                const total = this.pages.length;
+                document.getElementById('reader-progress-text').innerText = `${current} / ${total}`;
+                document.getElementById('reader-progress-bar').style.width = `${(current / total) * 100}%`;
+
+                // Salva progresso no IndexedDB
+                this.saveProgress(current, total);
+            },
+
+            async saveProgress(current, total) {
+                const comic = await DB.getComic(this.currentComicId);
+                if (comic) {
+                    comic.currentPage = current;
+                    comic.totalPages = total;
+                    comic.progress = Math.round((current / total) * 100);
+                    await DB.saveComic(comic);
+                    // Não chamamos UI.loadComics aqui para não recarregar a library em background sem necessidade
+                }
+            },
+
+            close() {
+                document.getElementById('reader-screen').classList.add('hide');
+                document.getElementById('library-screen').classList.remove('hide');
+                UI.loadComics(); // Recarrega para mostrar barra de progresso atualizada
+            },
+
+            setupGestures() {
+                if (this.hammer) return; // Já configurado
+
+                const container = document.getElementById('reader-container');
+                const img = document.getElementById('comic-page');
+                
+                this.hammer = new Hammer(container);
+                this.hammer.get('pinch').set({ enable: true });
+                this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL });
+
+                // Swipe lateral para trocar de página
+                this.hammer.on('swipeleft', () => {
+                    if (this.scale === 1 && this.currentIndex < this.pages.length - 1) {
+                        this.currentIndex++;
+                        this.renderPage();
+                    }
+                });
+
+                this.hammer.on('swiperight', () => {
+                    if (this.scale === 1 && this.currentIndex > 0) {
+                        this.currentIndex--;
+                        this.renderPage();
+                    }
+                });
+
+                // Pinch para Zoom
+                this.hammer.on('pinchstart', () => { this.lastScale = this.scale; });
+                this.hammer.on('pinch', (e) => {
+                    this.scale = Math.max(1, Math.min(this.lastScale * e.scale, 4)); // Limita entre 1x e 4x
+                    this.applyTransform(img);
+                });
+
+                // Pan para mover quando estiver com Zoom
+                this.hammer.on('panstart', () => {
+                    this.lastTranslateX = this.translateX;
+                    this.lastTranslateY = this.translateY;
+                });
+                this.hammer.on('pan', (e) => {
+                    if (this.scale > 1) {
+                        this.translateX = this.lastTranslateX + e.deltaX;
+                        this.translateY = this.lastTranslateY + e.deltaY;
+                        this.applyTransform(img);
+                    }
+                });
+
+                // Duplo Toque para resetar ou dar zoom rápido
+                this.hammer.on('doubletap', () => {
+                    if (this.scale > 1) {
+                        this.resetZoom();
+                    } else {
+                        this.scale = 2; // Zoom padrão
+                        this.applyTransform(img);
+                    }
+                });
+            },
+
+            applyTransform(el) {
+                el.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
+            },
+
+            resetZoom() {
+                this.scale = 1;
+                this.lastScale = 1;
+                this.translateX = 0;
+                this.translateY = 0;
+                this.lastTranslateX = 0;
+                this.lastTranslateY = 0;
+                this.applyTransform(document.getElementById('comic-page'));
+            }
+        };
+
+        /**
+         * 4. LÓGICA DE BACKUP E RECONCILIAÇÃO
+         */
+        const Backup = {
+            async export() {
+                const comics = await DB.getAllComics();
+                // Limpa os Blobs de imagem pesados do backup, salvamos apenas metadados
+                const exportData = comics.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    shelf: c.shelf,
+                    currentPage: c.currentPage,
+                    totalPages: c.totalPages,
+                    progress: c.progress
+                }));
+
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
+                const anchor = document.createElement('a');
+                anchor.setAttribute("href", dataStr);
+                anchor.setAttribute("download", `gibiteca_backup_${new Date().toISOString().split('T')[0]}.json`);
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+            },
+
+            async import(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const importedComics = JSON.parse(e.target.result);
+                        for (const comic of importedComics) {
+                            // Algoritmo de Reconciliação Inteligente:
+                            // 1. Tenta buscar pelo ID local primeiro
+                            const existing = await DB.getComic(comic.id);
+                            
+                            if (existing) {
+                                // Atualiza metadados, mantendo a capa local
+                                existing.currentPage = comic.currentPage;
+                                existing.progress = comic.progress;
+                                existing.shelf = comic.shelf;
+                                await DB.saveComic(existing);
+                            } else {
+                                // 2. Se não existir, insere o registro. 
+                                // O app buscará a capa (sidecar) na nuvem na próxima vez que conectar ao Drive,
+                                // usando o nome do arquivo, pois o ID do Drive na nova conta pode ter mudado.
+                                await DB.saveComic(comic);
+                                console.log(`Restaurado metadata de: ${comic.name}`);
+                            }
+                        }
+                        alert('Backup restaurado com sucesso!');
+                        UI.loadComics();
+                    } catch (err) {
+                        alert('Erro ao ler o arquivo de backup.');
+                        console.error(err);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        };
+
+        /**
+         * 5. LÓGICA DE INTERFACE (Renderização)
+         */
+        const UI = {
+            async loadComics() {
+                const comics = await DB.getAllComics();
+                App.comics = comics;
+                this.renderGrid();
+            },
+
+            changeShelf(shelfName) {
+                App.currentShelf = shelfName;
+                
+                // Atualiza visual das abas
+                document.querySelectorAll('.shelf-tab').forEach(tab => {
+                    if(tab.innerText === shelfName) {
+                        tab.classList.replace('text-gray-400', 'text-blue-400');
+                        tab.classList.add('border-b-2', 'border-blue-400');
+                    } else {
+                        tab.classList.replace('text-blue-400', 'text-gray-400');
+                        tab.classList.remove('border-b-2', 'border-blue-400');
+                    }
+                });
+
+                this.renderGrid();
+            },
+
+            renderGrid() {
+                const grid = document.getElementById('comics-grid');
+                grid.innerHTML = ''; // Limpa
+
+                const filtered = App.comics.filter(c => c.shelf === App.currentShelf);
+
+                if (filtered.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full text-center text-gray-500 mt-10">Estante vazia. Adicione quadrinhos pelo botão +</div>`;
+                    return;
+                }
+
+                filtered.forEach(comic => {
+                    // Caso a capa ainda não tenha sido gerada (sidecar pendente)
+                    const coverSrc = comic.coverBlob && comic.coverBlob !== 'placeholder' 
+                                     ? comic.coverBlob 
+                                     : 'https://via.placeholder.com/300x450/374151/9CA3AF?text=Sem+Capa';
+
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer transform hover:scale-105 transition-transform';
+                    card.onclick = () => Reader.open(comic.id);
+                    
+                    card.innerHTML = `
+                        <div class="relative pb-[150%]">
+                            <img src="${coverSrc}" class="absolute top-0 left-0 w-full h-full object-cover" alt="Capa ${comic.name}">
+                        </div>
+                        <div class="p-2">
+                            <h3 class="text-sm font-bold truncate" title="${comic.name}">${comic.name.replace(/\.cbz|\.cbr/gi, '')}</h3>
+                            <div class="mt-2 h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
+                                <div class="h-full bg-blue-500" style="width: ${comic.progress || 0}%"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1 text-right">${comic.progress || 0}%</p>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+        };
+
+        /**
+         * Inicialização da Aplicação
+         */
+        window.onload = async () => {
+            await DB.init();
+            UI.loadComics();
+            
+            // Tenta inicializar APIs do Google se as chaves existirem
+            setTimeout(() => { Drive.init(); }, 1000); 
+        };
+
+        // Função auxiliar para injetar dados falsos para você testar a UI agora mesmo no Canvas
+        App.loadMockData = async () => {
+            App.isMockMode = true;
+            document.getElementById('config-warning').classList.add('hide');
+            
+            const mocks = [
+                { id: '1', name: 'Homem_Aranha_01.cbz', shelf: 'Marvel', progress: 45, currentPage: 5, totalPages: 11 },
+                { id: '2', name: 'X-Men_Origens.cbz', shelf: 'Marvel', progress: 0, currentPage: 0, totalPages: 0 },
+                { id: '3', name: 'Batman_Ano_Um.cbz', shelf: 'DC', progress: 100, currentPage: 20, totalPages: 20 }
+            ];
+
+            for (let m of mocks) {
+                const exists = await DB.getComic(m.id);
+                if (!exists) await DB.saveComic(m);
+            }
+            UI.loadComics();
+        };
+
+    </script>
+</body>
+</html>
