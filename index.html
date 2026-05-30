@@ -107,13 +107,14 @@
         <header class="bg-gray-800 p-4 shadow-md flex justify-between items-center z-10">
             <div class="flex items-center gap-3">
                 <img src="icon.svg" alt="Gibiteca Icon" class="w-8 h-8 drop-shadow-md">
-                <h1 class="text-xl font-bold tracking-wider">GIBITECA</h1>
+                <h1 class="text-xl font-bold tracking-wider hidden sm:block">GIBITECA</h1>
             </div>
-            <div class="flex gap-4">
-                <button onclick="Backup.export()" class="text-sm bg-gray-700 px-3 py-1 rounded hover:bg-gray-600 transition-colors">Exportar Backup</button>
-                <button onclick="document.getElementById('import-file').click()" class="text-sm bg-gray-700 px-3 py-1 rounded hover:bg-gray-600 transition-colors">Importar</button>
+            <div class="flex gap-3 items-center">
+                <button onclick="App.toggleFullScreen()" class="text-white hover:text-gray-300 transition-colors text-xl mr-2" title="Tela Cheia">⛶</button>
+                <button onclick="Backup.export()" class="text-xs sm:text-sm bg-gray-700 px-3 py-2 rounded hover:bg-gray-600 transition-colors">Exportar</button>
+                <button onclick="document.getElementById('import-file').click()" class="text-xs sm:text-sm bg-gray-700 px-3 py-2 rounded hover:bg-gray-600 transition-colors">Importar</button>
                 <input type="file" id="import-file" class="hidden" accept=".json" onchange="Backup.import(event)">
-                <button id="auth-btn" class="bg-blue-600 hover:bg-blue-500 px-4 py-1 rounded font-semibold transition-colors">Conectar Drive</button>
+                <button id="auth-btn" class="text-xs sm:text-sm bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded font-semibold transition-colors">Conectar Drive</button>
             </div>
         </header>
 
@@ -122,8 +123,8 @@
             <!-- Estantes injetadas via JS -->
         </nav>
 
-        <!-- Grid de Quadrinhos -->
-        <div id="comics-grid" class="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <!-- Grid de Quadrinhos (Ajustado para Tablet) -->
+        <div id="comics-grid" class="flex-1 overflow-y-auto p-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-4 pb-24">
             <!-- Cards gerados via JavaScript -->
         </div>
 
@@ -133,19 +134,22 @@
         </button>
     </main>
 
-    <!-- TELA DE LEITURA (Oculta por padrão) -->
+    <!-- TELA DE LEITURA -->
     <section id="reader-screen" class="fixed inset-0 bg-black z-50 hide flex flex-col">
         <!-- Controles Superiores do Leitor -->
         <div id="reader-header" class="absolute top-0 w-full bg-gradient-to-b from-black/80 to-transparent p-4 flex justify-between items-center transition-opacity z-10">
             <button onclick="Reader.close()" class="text-white bg-gray-800/80 px-4 py-2 rounded-lg backdrop-blur-sm">← Voltar</button>
-            <div id="reader-title" class="text-sm font-semibold truncate px-4">Carregando...</div>
-            <div id="reader-progress-text" class="text-xs bg-gray-800/80 px-3 py-1 rounded-full">0 / 0</div>
+            <div id="reader-title" class="text-sm font-semibold truncate px-4 hidden sm:block">Carregando...</div>
+            <div class="flex items-center gap-4">
+                <div id="reader-progress-text" class="text-xs bg-gray-800/80 px-3 py-1 rounded-full">0 / 0</div>
+                <button onclick="App.toggleFullScreen()" class="text-white hover:text-gray-300 transition-colors text-2xl font-bold px-2">⛶</button>
+            </div>
         </div>
 
-        <!-- Container da Imagem (Onde o Hammer.js atua) -->
+        <!-- Container da Imagem -->
         <div id="reader-container" class="flex-1 w-full h-full flex items-center justify-center relative">
             <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-black hide z-20">
-                <div class="flex flex-col items-center">
+                <div class="flex flex-col items-center p-4">
                     <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
                     <span id="loading-text" class="text-white text-sm text-center">Iniciando...</span>
                 </div>
@@ -164,6 +168,7 @@
     <script>
         /**
          * CONFIGURAÇÕES DO GOOGLE
+         * ATENÇÃO: NÃO SE ESQUEÇA DE SUBSTITUIR PELAS SUAS CHAVES AQUI
          */
         const GOOGLE_CONFIG = {
             CLIENT_ID: '1073647170468-alkgv60idbapacpttvikj6r6pejlsaod.apps.googleusercontent.com',
@@ -186,6 +191,20 @@
                 document.getElementById('message-title').innerText = title;
                 document.getElementById('message-text').innerText = text;
                 document.getElementById('message-box').classList.remove('hide');
+            },
+
+            toggleFullScreen() {
+                if (!document.fullscreenElement) {
+                    // Entrar em tela cheia
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.error(`Erro ao tentar entrar em tela cheia: ${err.message}`);
+                    });
+                } else {
+                    // Sair da tela cheia
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                }
             }
         };
 
@@ -402,7 +421,6 @@
 
             init() {
                 if (GOOGLE_CONFIG.CLIENT_ID.includes('COLE_SEU')) {
-                    // Sem alerta na tela, apenas trava no console em produção se faltar a chave.
                     console.warn("CLIENT_ID não configurado.");
                     return; 
                 }
@@ -466,7 +484,6 @@
                 const fileId = driveDoc.id;
                 const fileName = driveDoc.name;
 
-                // Verifica se há alguma estante configurada
                 if (!App.currentShelf) {
                     App.showMessage('Aviso', 'Crie pelo menos uma estante antes de adicionar revistas.');
                     return;
@@ -789,7 +806,6 @@
 
                 App.shelves.forEach(shelf => {
                     const btn = document.createElement('button');
-                    // Estilo varia se é a aba ativa ou inativa
                     const isActive = (shelf === App.currentShelf);
                     btn.className = `shelf-tab font-bold pb-1 transition-colors ${isActive ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`;
                     btn.innerText = shelf;
@@ -797,7 +813,6 @@
                     nav.appendChild(btn);
                 });
 
-                // Botão de Engrenagem para Gerenciar Estantes
                 const manageBtn = document.createElement('button');
                 manageBtn.className = 'text-gray-500 hover:text-gray-300 ml-4 transition-colors font-bold flex items-center justify-center';
                 manageBtn.title = 'Gerenciar Estantes';
@@ -847,16 +862,19 @@
                             <button onclick="event.stopPropagation(); ComicActions.open('${comic.id}')" class="bg-black/70 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black font-bold shadow-md">⋮</button>
                         </div>
 
-                        <div class="relative pb-[150%]">
-                            <img src="${coverSrc}" class="absolute top-0 left-0 w-full h-full object-cover" alt="Capa ${comic.name}">
+                        <!-- Capa com proporção fixa (Aspect Ratio 2/3) -->
+                        <div class="w-full aspect-[2/3] relative">
+                            <img src="${coverSrc}" class="absolute inset-0 w-full h-full object-cover" alt="Capa ${comic.name}">
                         </div>
+                        
+                        <!-- Metadados da Revista -->
                         <div class="p-2 flex-1 flex flex-col justify-between">
-                            <h3 class="text-sm font-bold truncate" title="${comic.name}">${comic.name.replace(/\.cbz|\.cbr|\.zip|\.rar/gi, '')}</h3>
+                            <h3 class="text-xs sm:text-sm font-bold truncate" title="${comic.name}">${comic.name.replace(/\.cbz|\.cbr|\.zip|\.rar/gi, '')}</h3>
                             <div class="mt-2 w-full">
                                 <div class="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
                                     <div class="h-full bg-blue-500" style="width: ${comic.progress || 0}%"></div>
                                 </div>
-                                <p class="text-xs text-gray-400 mt-1 text-right">${comic.progress || 0}%</p>
+                                <p class="text-[10px] sm:text-xs text-gray-400 mt-1 text-right">${comic.progress || 0}%</p>
                             </div>
                         </div>
                     `;
