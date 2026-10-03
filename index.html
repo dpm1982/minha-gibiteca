@@ -831,6 +831,10 @@
 
             async loadComics() {
                 const comics = await DB.getAllComics();
+                
+                // ORDENAÇÃO ALFABÉTICA INTELIGENTE APLICADA AQUI
+                comics.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+                
                 App.comics = comics;
                 this.renderGrid();
             },
