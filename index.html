@@ -123,8 +123,8 @@
             <!-- Estantes injetadas via JS -->
         </nav>
 
-        <!-- Grid de Quadrinhos (Ajustado para Tablet) -->
-        <div id="comics-grid" class="flex-1 overflow-y-auto p-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-4 pb-24">
+        <!-- Grid de Quadrinhos (Ajustado para tamanho mínimo e rolagem automática) -->
+        <div id="comics-grid" class="flex-1 overflow-y-auto overflow-x-hidden p-4 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4 pb-24 content-start">
             <!-- Cards gerados via JavaScript -->
         </div>
 
@@ -201,12 +201,10 @@
 
             toggleFullScreen() {
                 if (!document.fullscreenElement) {
-                    // Entrar em tela cheia
                     document.documentElement.requestFullscreen().catch(err => {
                         console.error(`Erro ao tentar entrar em tela cheia: ${err.message}`);
                     });
                 } else {
-                    // Sair da tela cheia
                     if (document.exitFullscreen) {
                         document.exitFullscreen();
                     }
@@ -328,7 +326,6 @@
                     App.shelves[index] = newName.trim();
                     App.saveShelves();
                     
-                    // Atualiza os quadrinhos no DB
                     const comics = await DB.getAllComics();
                     for (let c of comics) {
                         if (c.shelf === oldName) {
@@ -773,7 +770,6 @@
                         const importedComics = JSON.parse(e.target.result);
                         for (const comic of importedComics) {
                             
-                            // Adiciona as estantes do backup automaticamente se elas não existirem
                             if (!App.shelves.includes(comic.shelf)) {
                                 App.shelves.push(comic.shelf);
                             }
@@ -859,7 +855,7 @@
                                      : 'https://via.placeholder.com/300x450/374151/9CA3AF?text=Sem+Capa';
 
                     const card = document.createElement('div');
-                    card.className = 'bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer transform hover:scale-105 transition-transform flex flex-col relative group';
+                    card.className = 'bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer transform hover:scale-105 transition-transform flex flex-col h-full relative group';
                     card.onclick = () => Reader.open(comic.id);
                     
                     card.innerHTML = `
@@ -868,13 +864,13 @@
                             <button onclick="event.stopPropagation(); ComicActions.open('${comic.id}')" class="bg-black/70 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black font-bold shadow-md">⋮</button>
                         </div>
 
-                        <!-- Capa com proporção fixa (Aspect Ratio 2/3) -->
-                        <div class="w-full aspect-[2/3] relative">
+                        <!-- Capa com proporção fixa (shrink-0 impede que ela esmague os textos abaixo) -->
+                        <div class="w-full aspect-[2/3] relative shrink-0">
                             <img src="${coverSrc}" class="absolute inset-0 w-full h-full object-cover" alt="Capa ${comic.name}">
                         </div>
                         
-                        <!-- Metadados da Revista (Tudo agrupado bem próximo) -->
-                        <div class="p-2 flex flex-col gap-1">
+                        <!-- Metadados da Revista (flex-1 preenche o espaço restante e garante visibilidade) -->
+                        <div class="p-2 flex flex-col justify-between flex-1 min-h-[55px] bg-gray-800 z-10">
                             <h3 class="text-xs sm:text-sm font-bold truncate" title="${comic.name}">${comic.name.replace(/\.cbz|\.cbr|\.zip|\.rar/gi, '')}</h3>
                             <div class="w-full mt-1">
                                 <div class="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
