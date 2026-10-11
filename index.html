@@ -33,7 +33,7 @@
             color: #f3f4f6;
         }
         
-        /* Oculta barras de rolagem para uma experiência mais limpa */
+        /* Customiza as barras de rolagem para uma experiência mais limpa */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
@@ -102,9 +102,11 @@
     </div>
 
     <!-- TELA INICIAL: GIBITECA -->
-    <main id="library-screen" class="flex-1 flex flex-col h-full">
-        <!-- Cabeçalho -->
-        <header class="bg-gray-800 p-4 shadow-md flex justify-between items-center z-10">
+    <!-- Adicionado min-h-0 para forçar o limite de tamanho e ativar a rolagem -->
+    <main id="library-screen" class="flex-1 flex flex-col min-h-0">
+        
+        <!-- Cabeçalho (Adicionado shrink-0 para não ser esmagado) -->
+        <header class="bg-gray-800 p-4 shadow-md flex justify-between items-center z-10 shrink-0">
             <div class="flex items-center gap-3">
                 <img src="icon.svg" alt="Gibiteca Icon" class="w-8 h-8 drop-shadow-md">
                 <h1 class="text-xl font-bold tracking-wider hidden sm:block">GIBITECA</h1>
@@ -118,12 +120,12 @@
             </div>
         </header>
 
-        <!-- Navegação de Estantes (Tabs) -->
-        <nav id="shelf-nav" class="bg-gray-900 border-b border-gray-700 overflow-x-auto whitespace-nowrap px-4 py-2 flex items-center gap-6">
+        <!-- Navegação de Estantes (Adicionado shrink-0) -->
+        <nav id="shelf-nav" class="bg-gray-900 border-b border-gray-700 overflow-x-auto whitespace-nowrap px-4 py-2 flex items-center gap-6 shrink-0">
             <!-- Estantes injetadas via JS -->
         </nav>
 
-        <!-- Grid de Quadrinhos (Ajustado para tamanho mínimo e rolagem automática) -->
+        <!-- Grid de Quadrinhos (Rolagem Ativada com tamanhos mínimos robustos) -->
         <div id="comics-grid" class="flex-1 overflow-y-auto overflow-x-hidden p-4 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4 pb-24 content-start">
             <!-- Cards gerados via JavaScript -->
         </div>
@@ -137,7 +139,7 @@
     <!-- TELA DE LEITURA -->
     <section id="reader-screen" class="fixed inset-0 bg-black z-50 hide flex flex-col">
         
-        <!-- Controles Superiores do Leitor (Discretos e sem barra de fundo) -->
+        <!-- Controles Superiores do Leitor -->
         <div id="reader-header" class="absolute top-0 w-full p-4 flex justify-between items-start transition-opacity z-10 pointer-events-none">
             <button onclick="Reader.close()" class="text-gray-400 hover:text-white text-3xl drop-shadow-md pointer-events-auto" title="Voltar">←</button>
             <div id="reader-title" class="text-sm font-semibold truncate px-4 hidden sm:block text-gray-400 drop-shadow-md">Carregando...</div>
@@ -152,29 +154,25 @@
                     <span id="loading-text" class="text-white text-sm text-center">Iniciando...</span>
                 </div>
             </div>
-            <!-- Imagem base do quadrinho -->
             <img id="comic-page" src="" alt="Página" class="max-w-full max-h-full object-contain pointer-events-none hide">
         </div>
         
-        <!-- Controles Inferiores (Contador e Barra de Progresso) -->
+        <!-- Controles Inferiores -->
         <div class="absolute bottom-0 w-full z-10 pointer-events-none">
-            <!-- Indicador de Página (Canto Inferior Direito) -->
             <div class="flex justify-end px-2 pb-1">
                 <div id="reader-progress-text" class="text-[10px] sm:text-xs text-gray-400 bg-black/60 px-2 py-0.5 rounded backdrop-blur-sm drop-shadow-md pointer-events-auto">0 / 0</div>
             </div>
-            <!-- Barra de Progresso (Fina, colada na borda inferior) -->
             <div class="w-full h-1 bg-gray-800/50">
                 <div id="reader-progress-bar" class="h-full bg-blue-500" style="width: 0%"></div>
             </div>
         </div>
-
     </section>
 
     <!-- LÓGICA DA APLICAÇÃO -->
     <script>
         /**
          * CONFIGURAÇÕES DO GOOGLE
-         * ATENÇÃO: NÃO SE ESQUEÇA DE SUBSTITUIR PELAS SUAS CHAVES AQUI
+         * ATENÇÃO: COLE SUAS CREDENCIAIS AQUI!
          */
         const GOOGLE_CONFIG = {
             CLIENT_ID: '1073647170468-alkgv60idbapacpttvikj6r6pejlsaod.apps.googleusercontent.com',
@@ -202,7 +200,7 @@
             toggleFullScreen() {
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen().catch(err => {
-                        console.error(`Erro ao tentar entrar em tela cheia: ${err.message}`);
+                        console.error(`Erro ao entrar em tela cheia: ${err.message}`);
                     });
                 } else {
                     if (document.exitFullscreen) {
@@ -212,7 +210,6 @@
             }
         };
 
-        // Define estante inicial
         App.currentShelf = App.shelves.length > 0 ? App.shelves[0] : '';
 
         /**
@@ -367,7 +364,7 @@
         };
 
         /**
-         * 3. AÇÕES DO QUADRINHO (Mover / Excluir)
+         * 3. AÇÕES DO QUADRINHO
          */
         const ComicActions = {
             currentId: null,
@@ -407,7 +404,7 @@
             },
             async delete() {
                 if (!this.currentId) return;
-                if (confirm('Tem certeza que deseja remover este quadrinho da sua Gibiteca? (O arquivo continuará intacto no seu Google Drive, apenas sairá desta lista)')) {
+                if (confirm('Tem certeza que deseja remover este quadrinho da sua Gibiteca? (O arquivo continuará intacto no seu Google Drive)')) {
                     await DB.deleteComic(this.currentId);
                     this.close();
                     UI.loadComics();
@@ -416,7 +413,7 @@
         };
 
         /**
-         * 4. LÓGICA DO GOOGLE DRIVE (Autenticação e API)
+         * 4. LÓGICA DO GOOGLE DRIVE
          */
         const Drive = {
             tokenClient: null,
@@ -816,7 +813,7 @@
                 });
 
                 const manageBtn = document.createElement('button');
-                manageBtn.className = 'text-gray-500 hover:text-gray-300 ml-4 transition-colors font-bold flex items-center justify-center';
+                manageBtn.className = 'text-gray-500 hover:text-gray-300 ml-4 transition-colors font-bold flex items-center justify-center shrink-0';
                 manageBtn.title = 'Gerenciar Estantes';
                 manageBtn.innerHTML = '⚙️';
                 manageBtn.onclick = () => ShelvesManager.open();
@@ -831,10 +828,7 @@
 
             async loadComics() {
                 const comics = await DB.getAllComics();
-                
-                // ORDENAÇÃO ALFABÉTICA INTELIGENTE APLICADA AQUI
                 comics.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-                
                 App.comics = comics;
                 this.renderGrid();
             },
@@ -859,22 +853,23 @@
                                      : 'https://via.placeholder.com/300x450/374151/9CA3AF?text=Sem+Capa';
 
                     const card = document.createElement('div');
+                    // h-full para alinhar o fim dos cards
                     card.className = 'bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer transform hover:scale-105 transition-transform flex flex-col h-full relative group';
                     card.onclick = () => Reader.open(comic.id);
                     
                     card.innerHTML = `
-                        <!-- Botão de Opções (Mover/Excluir) -->
+                        <!-- Botão de Opções -->
                         <div class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onclick="event.stopPropagation(); ComicActions.open('${comic.id}')" class="bg-black/70 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black font-bold shadow-md">⋮</button>
                         </div>
 
-                        <!-- Capa com proporção fixa (shrink-0 impede que ela esmague os textos abaixo) -->
-                        <div class="w-full aspect-[2/3] relative shrink-0">
+                        <!-- Capa blindada com proporção exata de 2:3 (150% do padding) e shrink-0 -->
+                        <div class="w-full relative shrink-0" style="padding-bottom: 150%;">
                             <img src="${coverSrc}" class="absolute inset-0 w-full h-full object-cover" alt="Capa ${comic.name}">
                         </div>
                         
-                        <!-- Metadados da Revista (flex-1 preenche o espaço restante e garante visibilidade) -->
-                        <div class="p-2 flex flex-col justify-between flex-1 min-h-[55px] bg-gray-800 z-10">
+                        <!-- Metadados blindados (shrink-0 e z-10 para não sumir) -->
+                        <div class="p-2 flex flex-col justify-between flex-1 bg-gray-800 z-10 shrink-0 min-h-[60px]">
                             <h3 class="text-xs sm:text-sm font-bold truncate" title="${comic.name}">${comic.name.replace(/\.cbz|\.cbr|\.zip|\.rar/gi, '')}</h3>
                             <div class="w-full mt-1">
                                 <div class="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
@@ -889,9 +884,6 @@
             }
         };
 
-        /**
-         * Inicialização da Aplicação
-         */
         window.onload = async () => {
             await DB.init();
             UI.renderShelves();
