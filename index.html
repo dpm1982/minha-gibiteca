@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minha Gibiteca PWA</title>
     
-    <!-- Meta tags para PWA (Tela cheia no Android/iOS) -->
+    <!-- Meta tags para PWA -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#111827">
 
-    <!-- Configuração PWA (Manifesto e Ícone SVG) -->
+    <!-- Configuração PWA -->
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icon.svg">
@@ -26,36 +26,25 @@
     <script src="https://apis.google.com/js/api.js" async defer></script>
 
     <style>
-        /* Estilos personalizados essenciais que o Tailwind não cobre nativamente */
         body {
-            overscroll-behavior-y: none; /* Previne o 'pull-to-refresh' no Android */
+            overscroll-behavior-y: none;
             background-color: #111827;
             color: #f3f4f6;
         }
         
-        /* Customiza as barras de rolagem para uma experiência mais limpa */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
 
-        /* Estilos do Leitor */
-        #reader-container {
-            touch-action: none; /* CRUCIAL para o Hammer.js funcionar sem conflito com o scroll do navegador */
-            overflow: hidden;
-        }
-        
-        #comic-page {
-            transition: transform 0.1s ease-out; /* Suaviza o zoom/pan */
-            transform-origin: center center;
-            will-change: transform;
-        }
+        #reader-container { touch-action: none; overflow: hidden; }
+        #comic-page { transition: transform 0.1s ease-out; transform-origin: center center; will-change: transform; }
 
         .hide { display: none !important; }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col font-sans overflow-hidden">
+<body class="fixed inset-0 flex flex-col font-sans overflow-hidden">
 
-    <!-- CAIXA DE MENSAGEM CUSTOMIZADA -->
+    <!-- CAIXA DE MENSAGEM -->
     <div id="message-box" class="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center hide">
         <div class="bg-gray-800 p-6 rounded-lg max-w-sm w-full mx-4 shadow-xl border border-gray-700">
             <h3 class="text-lg font-bold text-white mb-2" id="message-title">Aviso</h3>
@@ -70,9 +59,7 @@
     <div id="shelf-manager-modal" class="fixed inset-0 bg-black/80 z-[90] flex items-center justify-center hide">
         <div class="bg-gray-800 p-6 rounded-lg max-w-sm w-full mx-4 shadow-xl border border-gray-700">
             <h3 class="text-lg font-bold text-white mb-4">Gerenciar Estantes</h3>
-            <ul id="shelf-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto">
-                <!-- Estantes geradas via JS -->
-            </ul>
+            <ul id="shelf-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto"></ul>
             <div class="flex gap-2 mb-6">
                 <input type="text" id="new-shelf-name" placeholder="Nova estante" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 <button onclick="ShelvesManager.add()" class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded font-bold text-white">+</button>
@@ -89,9 +76,7 @@
             <h3 class="text-lg font-bold text-white mb-4 truncate" id="options-comic-title">Título</h3>
             <div class="mb-6">
                 <label class="block text-sm text-gray-400 mb-2">Mover para a estante:</label>
-                <select id="move-shelf-select" class="w-full bg-gray-700 text-white px-3 py-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                    <!-- Opções geradas via JS -->
-                </select>
+                <select id="move-shelf-select" class="w-full bg-gray-700 text-white px-3 py-2 rounded outline-none focus:ring-2 focus:ring-blue-500"></select>
             </div>
             <div class="flex flex-col gap-3">
                 <button onclick="ComicActions.move()" class="bg-blue-600 hover:bg-blue-500 py-2 rounded font-semibold text-white transition-colors">Salvar Alteração</button>
@@ -102,10 +87,9 @@
     </div>
 
     <!-- TELA INICIAL: GIBITECA -->
-    <!-- Adicionado min-h-0 para forçar o limite de tamanho e ativar a rolagem -->
-    <main id="library-screen" class="flex-1 flex flex-col min-h-0">
+    <main id="library-screen" class="flex-1 flex flex-col min-h-0 relative">
         
-        <!-- Cabeçalho (Adicionado shrink-0 para não ser esmagado) -->
+        <!-- Cabeçalho -->
         <header class="bg-gray-800 p-4 shadow-md flex justify-between items-center z-10 shrink-0">
             <div class="flex items-center gap-3">
                 <img src="icon.svg" alt="Gibiteca Icon" class="w-8 h-8 drop-shadow-md">
@@ -120,33 +104,33 @@
             </div>
         </header>
 
-        <!-- Navegação de Estantes (Adicionado shrink-0) -->
-        <nav id="shelf-nav" class="bg-gray-900 border-b border-gray-700 overflow-x-auto whitespace-nowrap px-4 py-2 flex items-center gap-6 shrink-0">
-            <!-- Estantes injetadas via JS -->
-        </nav>
+        <!-- Navegação de Estantes -->
+        <nav id="shelf-nav" class="bg-gray-900 border-b border-gray-700 overflow-x-auto whitespace-nowrap px-4 py-2 flex items-center gap-6 shrink-0"></nav>
 
-        <!-- Grid de Quadrinhos (Rolagem Ativada com tamanhos mínimos robustos) -->
-        <div id="comics-grid" class="flex-1 overflow-y-auto overflow-x-hidden p-4 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4 pb-24 content-start">
-            <!-- Cards gerados via JavaScript -->
+        <!-- Grade de Quadrinhos (Ajustada para o limite de 9 itens em formato 3x3) -->
+        <div id="comics-grid" class="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 content-start">
+            <!-- Cards gerados via JS -->
         </div>
 
-        <!-- Botão Flutuante (Adicionar do Drive) -->
-        <button id="add-comic-btn" class="fixed bottom-6 right-6 bg-blue-600 w-14 h-14 rounded-full shadow-lg text-white text-3xl font-light flex items-center justify-center hover:bg-blue-500 hover:scale-105 transition-transform z-20">
+        <!-- Botão Flutuante (Add) reposicionado para não tampar o rodapé -->
+        <button id="add-comic-btn" class="absolute bottom-16 right-6 bg-blue-600 w-14 h-14 rounded-full shadow-lg text-white text-3xl font-light flex items-center justify-center hover:bg-blue-500 hover:scale-105 transition-transform z-20">
             +
         </button>
+
+        <!-- RODAPÉ DE PAGINAÇÃO (PRATELEIRAS) -->
+        <div id="pagination-controls" class="bg-gray-800 border-t border-gray-700 p-2 flex justify-between items-center shrink-0 hide z-10">
+            <!-- Botões injetados via JS -->
+        </div>
     </main>
 
     <!-- TELA DE LEITURA -->
     <section id="reader-screen" class="fixed inset-0 bg-black z-50 hide flex flex-col">
-        
-        <!-- Controles Superiores do Leitor -->
         <div id="reader-header" class="absolute top-0 w-full p-4 flex justify-between items-start transition-opacity z-10 pointer-events-none">
             <button onclick="Reader.close()" class="text-gray-400 hover:text-white text-3xl drop-shadow-md pointer-events-auto" title="Voltar">←</button>
             <div id="reader-title" class="text-sm font-semibold truncate px-4 hidden sm:block text-gray-400 drop-shadow-md">Carregando...</div>
             <button onclick="App.toggleFullScreen()" class="text-gray-400 hover:text-white transition-colors text-2xl font-bold px-2 drop-shadow-md pointer-events-auto" title="Tela Cheia">⛶</button>
         </div>
 
-        <!-- Container da Imagem -->
         <div id="reader-container" class="flex-1 w-full h-full flex items-center justify-center relative">
             <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-black hide z-20">
                 <div class="flex flex-col items-center p-4">
@@ -157,7 +141,6 @@
             <img id="comic-page" src="" alt="Página" class="max-w-full max-h-full object-contain pointer-events-none hide">
         </div>
         
-        <!-- Controles Inferiores -->
         <div class="absolute bottom-0 w-full z-10 pointer-events-none">
             <div class="flex justify-end px-2 pb-1">
                 <div id="reader-progress-text" class="text-[10px] sm:text-xs text-gray-400 bg-black/60 px-2 py-0.5 rounded backdrop-blur-sm drop-shadow-md pointer-events-auto">0 / 0</div>
@@ -172,7 +155,6 @@
     <script>
         /**
          * CONFIGURAÇÕES DO GOOGLE
-         * ATENÇÃO: COLE SUAS CREDENCIAIS AQUI!
          */
         const GOOGLE_CONFIG = {
             CLIENT_ID: '1073647170468-alkgv60idbapacpttvikj6r6pejlsaod.apps.googleusercontent.com',
@@ -181,10 +163,11 @@
             SCOPES: 'https://www.googleapis.com/auth/drive.readonly'
         };
 
-        // Estado Global da Aplicação
+        // Estado Global
         const App = {
             shelves: JSON.parse(localStorage.getItem('gibiteca_shelves')) || ['Marvel', 'DC', 'Vertigo', 'Mangás'],
             currentShelf: '',
+            currentPage: 1, // NOVO: Controle da prateleira atual
             comics: [],
             
             saveShelves() {
@@ -199,95 +182,68 @@
 
             toggleFullScreen() {
                 if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen().catch(err => {
-                        console.error(`Erro ao entrar em tela cheia: ${err.message}`);
-                    });
+                    document.documentElement.requestFullscreen().catch(err => console.error(err));
                 } else {
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    }
+                    if (document.exitFullscreen) document.exitFullscreen();
                 }
             }
         };
 
         App.currentShelf = App.shelves.length > 0 ? App.shelves[0] : '';
 
-        /**
-         * 1. LÓGICA DE DADOS (IndexedDB)
-         */
+        // Banco de Dados
         const DB = {
             db: null,
             init() {
                 return new Promise((resolve, reject) => {
                     const request = indexedDB.open('GibitecaDB', 1);
-                    
                     request.onupgradeneeded = (e) => {
                         this.db = e.target.result;
                         if (!this.db.objectStoreNames.contains('comics')) {
                             this.db.createObjectStore('comics', { keyPath: 'id' });
                         }
                     };
-                    
-                    request.onsuccess = (e) => {
-                        this.db = e.target.result;
-                        resolve();
-                    };
+                    request.onsuccess = (e) => { this.db = e.target.result; resolve(); };
                     request.onerror = (e) => reject('Erro no IndexedDB');
                 });
             },
-
             async saveComic(comicData) {
                 return new Promise((resolve, reject) => {
                     const tx = this.db.transaction('comics', 'readwrite');
                     const store = tx.objectStore('comics');
                     store.put(comicData);
-                    tx.oncomplete = resolve;
-                    tx.onerror = reject;
+                    tx.oncomplete = resolve; tx.onerror = reject;
                 });
             },
-
             async getAllComics() {
                 return new Promise((resolve, reject) => {
                     const tx = this.db.transaction('comics', 'readonly');
                     const store = tx.objectStore('comics');
                     const request = store.getAll();
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = reject;
+                    request.onsuccess = () => resolve(request.result); request.onerror = reject;
                 });
             },
-
             async getComic(id) {
                 return new Promise((resolve, reject) => {
                     const tx = this.db.transaction('comics', 'readonly');
                     const store = tx.objectStore('comics');
                     const request = store.get(id);
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = reject;
+                    request.onsuccess = () => resolve(request.result); request.onerror = reject;
                 });
             },
-
             async deleteComic(id) {
                 return new Promise((resolve, reject) => {
                     const tx = this.db.transaction('comics', 'readwrite');
                     const store = tx.objectStore('comics');
                     const request = store.delete(id);
-                    request.onsuccess = resolve;
-                    request.onerror = reject;
+                    request.onsuccess = resolve; request.onerror = reject;
                 });
             }
         };
 
-        /**
-         * 2. GERENCIAMENTO DE ESTANTES (Shelves)
-         */
         const ShelvesManager = {
-            open() {
-                this.render();
-                document.getElementById('shelf-manager-modal').classList.remove('hide');
-            },
-            close() {
-                document.getElementById('shelf-manager-modal').classList.add('hide');
-            },
+            open() { this.render(); document.getElementById('shelf-manager-modal').classList.remove('hide'); },
+            close() { document.getElementById('shelf-manager-modal').classList.add('hide'); },
             render() {
                 const list = document.getElementById('shelf-list');
                 list.innerHTML = '';
@@ -297,8 +253,8 @@
                     li.innerHTML = `
                         <span class="text-white font-medium truncate flex-1 mr-2">${shelf}</span>
                         <div class="flex gap-4">
-                            <button onclick="ShelvesManager.rename('${shelf}')" class="text-blue-400 hover:text-blue-300 transition-colors" title="Editar">✏️</button>
-                            <button onclick="ShelvesManager.remove('${shelf}')" class="text-red-400 hover:text-red-300 transition-colors" title="Excluir">🗑️</button>
+                            <button onclick="ShelvesManager.rename('${shelf}')" class="text-blue-400 hover:text-blue-300">✏️</button>
+                            <button onclick="ShelvesManager.remove('${shelf}')" class="text-red-400 hover:text-red-300">🗑️</button>
                         </div>
                     `;
                     list.appendChild(li);
@@ -312,8 +268,7 @@
                     App.saveShelves();
                     if (!App.currentShelf) App.currentShelf = name;
                     input.value = '';
-                    this.render();
-                    UI.renderShelves();
+                    this.render(); UI.renderShelves();
                 }
             },
             async rename(oldName) {
@@ -332,20 +287,14 @@
                     }
                     
                     if (App.currentShelf === oldName) App.currentShelf = newName.trim();
-                    this.render();
-                    UI.renderShelves();
-                    UI.loadComics();
+                    this.render(); UI.renderShelves(); UI.loadComics();
                 }
             },
             async remove(name) {
-                if (App.shelves.length <= 1) {
-                    App.showMessage('Aviso', 'Você precisa ter pelo menos uma estante na sua Gibiteca.');
-                    return;
-                }
-                if (confirm(`Tem certeza que deseja excluir a estante "${name}"? Os quadrinhos contidos nela serão movidos automaticamente para a próxima estante disponível.`)) {
+                if (App.shelves.length <= 1) return App.showMessage('Aviso', 'Você precisa ter pelo menos uma estante.');
+                if (confirm(`Excluir a estante "${name}"? Os quadrinhos serão movidos para a estante principal.`)) {
                     App.shelves = App.shelves.filter(s => s !== name);
                     App.saveShelves();
-                    
                     const fallbackShelf = App.shelves[0];
                     const comics = await DB.getAllComics();
                     for (let c of comics) {
@@ -354,84 +303,55 @@
                             await DB.saveComic(c);
                         }
                     }
-                    
                     if (App.currentShelf === name) App.currentShelf = fallbackShelf;
-                    this.render();
-                    UI.renderShelves();
-                    UI.loadComics();
+                    this.render(); UI.renderShelves(); UI.loadComics();
                 }
             }
         };
 
-        /**
-         * 3. AÇÕES DO QUADRINHO
-         */
         const ComicActions = {
             currentId: null,
             async open(id) {
                 this.currentId = id;
                 const comic = await DB.getComic(id);
                 document.getElementById('options-comic-title').innerText = comic.name.replace(/\.cbz|\.cbr|\.zip|\.rar/gi, '');
-                
                 const select = document.getElementById('move-shelf-select');
                 select.innerHTML = '';
                 App.shelves.forEach(shelf => {
                     const opt = document.createElement('option');
-                    opt.value = shelf;
-                    opt.innerText = shelf;
+                    opt.value = shelf; opt.innerText = shelf;
                     if (shelf === comic.shelf) opt.selected = true;
                     select.appendChild(opt);
                 });
-                
                 document.getElementById('comic-options-modal').classList.remove('hide');
             },
-            close() {
-                document.getElementById('comic-options-modal').classList.add('hide');
-                this.currentId = null;
-            },
+            close() { document.getElementById('comic-options-modal').classList.add('hide'); this.currentId = null; },
             async move() {
                 if (!this.currentId) return;
-                const select = document.getElementById('move-shelf-select');
-                const newShelf = select.value;
-                
+                const newShelf = document.getElementById('move-shelf-select').value;
                 const comic = await DB.getComic(this.currentId);
-                if (comic) {
-                    comic.shelf = newShelf;
-                    await DB.saveComic(comic);
-                }
-                this.close();
-                UI.loadComics();
+                if (comic) { comic.shelf = newShelf; await DB.saveComic(comic); }
+                this.close(); UI.loadComics();
             },
             async delete() {
                 if (!this.currentId) return;
-                if (confirm('Tem certeza que deseja remover este quadrinho da sua Gibiteca? (O arquivo continuará intacto no seu Google Drive)')) {
+                if (confirm('Remover este quadrinho da sua Gibiteca?')) {
                     await DB.deleteComic(this.currentId);
-                    this.close();
-                    UI.loadComics();
+                    this.close(); UI.loadComics();
                 }
             }
         };
 
-        /**
-         * 4. LÓGICA DO GOOGLE DRIVE
-         */
         const Drive = {
-            tokenClient: null,
-            accessToken: null,
-
+            tokenClient: null, accessToken: null,
             init() {
-                if (GOOGLE_CONFIG.CLIENT_ID.includes('COLE_SEU')) {
-                    console.warn("CLIENT_ID não configurado.");
-                    return; 
-                }
-
+                if (GOOGLE_CONFIG.CLIENT_ID.includes('COLE_SEU')) return console.warn("CLIENT_ID não configurado.");
                 gapi.load('client:picker', async () => {
                     await gapi.client.init({
                         apiKey: GOOGLE_CONFIG.API_KEY,
                         discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
                     });
                 });
-
                 this.tokenClient = google.accounts.oauth2.initTokenClient({
                     client_id: GOOGLE_CONFIG.CLIENT_ID,
                     scope: GOOGLE_CONFIG.SCOPES,
@@ -439,141 +359,75 @@
                         if (tokenResponse && tokenResponse.access_token) {
                             this.accessToken = tokenResponse.access_token;
                             gapi.client.setToken({ access_token: this.accessToken });
-                            
                             document.getElementById('auth-btn').innerText = 'Conectado';
                             document.getElementById('auth-btn').classList.replace('bg-blue-600', 'bg-green-600');
                         }
                     },
                 });
-
                 document.getElementById('auth-btn').onclick = () => this.login();
                 document.getElementById('add-comic-btn').onclick = () => this.openPicker();
             },
-
-            login() {
-                this.tokenClient.requestAccessToken({ prompt: 'consent' });
-            },
-
+            login() { this.tokenClient.requestAccessToken({ prompt: 'consent' }); },
             openPicker() {
                 if (!this.accessToken) {
-                    App.showMessage('Autenticação Necessária', 'Por favor, conecte-se ao Drive primeiro.');
-                    this.login();
-                    return;
+                    App.showMessage('Autenticação Necessária', 'Conecte-se ao Drive primeiro.');
+                    return this.login();
                 }
-
                 const view = new google.picker.DocsView(google.picker.ViewId.DOCS);
                 view.setIncludeFolders(true); 
-                
                 const picker = new google.picker.PickerBuilder()
-                    .addView(view)
-                    .setOAuthToken(this.accessToken)
-                    .setDeveloperKey(GOOGLE_CONFIG.API_KEY)
-                    .setCallback(this.pickerCallback.bind(this))
-                    .build();
+                    .addView(view).setOAuthToken(this.accessToken).setDeveloperKey(GOOGLE_CONFIG.API_KEY)
+                    .setCallback(this.pickerCallback.bind(this)).build();
                 picker.setVisible(true);
             },
-
             async pickerCallback(data) {
                 if (data.action === google.picker.Action.PICKED) {
-                    const doc = data.docs[0];
-                    await this.processNewComic(doc);
+                    await this.processNewComic(data.docs[0]);
                 }
             },
-
             async processNewComic(driveDoc) {
-                const fileId = driveDoc.id;
-                const fileName = driveDoc.name;
-
-                if (!App.currentShelf) {
-                    App.showMessage('Aviso', 'Crie pelo menos uma estante antes de adicionar revistas.');
-                    return;
-                }
-
+                if (!App.currentShelf) return App.showMessage('Aviso', 'Crie uma estante antes.');
                 const comicData = {
-                    id: fileId,
-                    name: fileName,
-                    shelf: App.currentShelf,
-                    currentPage: 1,
-                    totalPages: 0,
-                    progress: 0,
-                    coverBlob: null 
+                    id: driveDoc.id, name: driveDoc.name, shelf: App.currentShelf,
+                    currentPage: 1, totalPages: 0, progress: 0, coverBlob: null 
                 };
-
                 try {
-                    const fileMeta = await gapi.client.drive.files.get({
-                        fileId: fileId,
-                        fields: 'parents'
-                    });
-
+                    const fileMeta = await gapi.client.drive.files.get({ fileId: driveDoc.id, fields: 'parents' });
                     if (fileMeta.result.parents && fileMeta.result.parents.length > 0) {
-                        const parentId = fileMeta.result.parents[0];
-                        const baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-                        
+                        const baseName = driveDoc.name.substring(0, driveDoc.name.lastIndexOf('.'));
                         const response = await gapi.client.drive.files.list({
-                            q: `(name='${baseName}.jpg' or name='${baseName}.png' or name='${baseName}.jpeg') and '${parentId}' in parents`,
+                            q: `(name='${baseName}.jpg' or name='${baseName}.png' or name='${baseName}.jpeg') and '${fileMeta.result.parents[0]}' in parents`,
                             fields: 'files(id, name)'
                         });
-
                         if (response.result.files && response.result.files.length > 0) {
-                            const coverId = response.result.files[0].id;
-                            
-                            const coverRes = await fetch(`https://www.googleapis.com/drive/v3/files/${coverId}?alt=media`, {
+                            const coverRes = await fetch(`https://www.googleapis.com/drive/v3/files/${response.result.files[0].id}?alt=media`, {
                                 headers: { 'Authorization': `Bearer ${this.accessToken}` }
                             });
                             const coverBuffer = await coverRes.arrayBuffer();
-                            
                             let binary = '';
                             const bytes = new Uint8Array(coverBuffer);
-                            for (let i = 0; i < bytes.byteLength; i++) {
-                                binary += String.fromCharCode(bytes[i]);
-                            }
-                            
+                            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
                             const mimeType = response.result.files[0].name.toLowerCase().endsWith('png') ? 'image/png' : 'image/jpeg';
                             comicData.coverBlob = `data:${mimeType};base64,${btoa(binary)}`;
-                        } else {
-                            comicData.coverBlob = 'placeholder'; 
-                        }
-                    } else {
-                        comicData.coverBlob = 'placeholder';
-                    }
-                } catch (error) {
-                    console.error("Erro ao buscar sidecar:", error);
-                    comicData.coverBlob = 'placeholder';
-                }
+                        } else comicData.coverBlob = 'placeholder';
+                    } else comicData.coverBlob = 'placeholder';
+                } catch (error) { comicData.coverBlob = 'placeholder'; }
 
                 await DB.saveComic(comicData);
                 await UI.loadComics();
             },
-
             async downloadFile(fileId) {
                 const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
                     headers: { 'Authorization': `Bearer ${this.accessToken}` }
                 });
-                
-                if (!response.ok) {
-                    throw new Error('Falha no download da API do Drive.');
-                }
-                
+                if (!response.ok) throw new Error('Falha no download.');
                 return await response.arrayBuffer();
             }
         };
 
-        /**
-         * 5. LÓGICA DE LEITURA E TOUCH
-         */
         const Reader = {
-            currentComicId: null,
-            pages: [], 
-            currentIndex: 0,
-            
-            hammer: null,
-            scale: 1,
-            lastScale: 1,
-            translateX: 0,
-            translateY: 0,
-            lastTranslateX: 0,
-            lastTranslateY: 0,
-
+            currentComicId: null, pages: [], currentIndex: 0, hammer: null,
+            scale: 1, lastScale: 1, translateX: 0, translateY: 0, lastTranslateX: 0, lastTranslateY: 0,
             async open(comicId) {
                 this.currentComicId = comicId;
                 const comic = await DB.getComic(comicId);
@@ -589,18 +443,14 @@
 
                 try {
                     if (comic.name.toLowerCase().endsWith('.cbr') || comic.name.toLowerCase().endsWith('.rar')) {
-                        App.showMessage('Formato Não Suportado', 'Aviso: Formatos .cbr/.rar não podem ser abertos levemente no navegador. Por favor, recompacte suas revistas para formato .zip e renomeie para .cbz.');
-                        this.close();
-                        return;
+                        App.showMessage('Formato Não Suportado', 'Converta para .cbz (ZIP) antes de ler.');
+                        return this.close();
                     }
-
-                    loadingText.innerText = 'Baixando do Drive (Isso pode demorar alguns minutos)...';
+                    loadingText.innerText = 'Baixando...';
                     const buffer = await Drive.downloadFile(comic.id);
-                    
-                    loadingText.innerText = 'Descompactando imagens da revista...';
+                    loadingText.innerText = 'Descompactando...';
                     const zip = await JSZip.loadAsync(buffer);
-                    
-                    loadingText.innerText = 'Preparando páginas para leitura...';
+                    loadingText.innerText = 'Preparando páginas...';
                     const imageFiles = Object.keys(zip.files).filter(name => name.match(/\.(jpg|jpeg|png|gif|webp)$/i));
                     imageFiles.sort(); 
 
@@ -609,200 +459,106 @@
                         const fileData = await zip.files[filename].async("blob");
                         this.pages.push(URL.createObjectURL(fileData)); 
                     }
-
                     if (this.pages.length === 0) {
-                        App.showMessage('Arquivo Vazio', 'O arquivo foi aberto, mas não encontramos imagens legíveis dentro dele.');
-                        this.close();
-                        return;
+                        App.showMessage('Arquivo Vazio', 'Não foram encontradas imagens.');
+                        return this.close();
                     }
-
                     comic.totalPages = this.pages.length;
                     this.currentIndex = comic.currentPage > 0 ? comic.currentPage - 1 : 0;
                     
                     document.getElementById('loading-spinner').classList.add('hide');
                     document.getElementById('comic-page').classList.remove('hide');
-                    
                     this.renderPage();
                 } catch (error) {
-                    console.error('Erro ao abrir quadrinho:', error);
-                    App.showMessage('Erro de Leitura', 'Erro ao carregar ou descompactar o arquivo. Verifique sua internet ou se o arquivo .cbz está corrompido.');
+                    App.showMessage('Erro de Leitura', 'Erro ao carregar arquivo. Pode estar corrompido.');
                     this.close();
                 }
             },
-
             renderPage() {
                 const img = document.getElementById('comic-page');
                 img.src = this.pages[this.currentIndex];
-                
                 this.resetZoom();
-
                 const current = this.currentIndex + 1;
                 const total = this.pages.length;
                 document.getElementById('reader-progress-text').innerText = `${current} / ${total}`;
                 document.getElementById('reader-progress-bar').style.width = `${(current / total) * 100}%`;
-
                 this.saveProgress(current, total);
             },
-
             async saveProgress(current, total) {
                 const comic = await DB.getComic(this.currentComicId);
                 if (comic) {
-                    comic.currentPage = current;
-                    comic.totalPages = total;
+                    comic.currentPage = current; comic.totalPages = total;
                     comic.progress = Math.round((current / total) * 100);
                     await DB.saveComic(comic);
                 }
             },
-
             close() {
-                if (this.pages.length > 0) {
-                    this.pages.forEach(url => URL.revokeObjectURL(url));
-                    this.pages = [];
-                }
-
+                if (this.pages.length > 0) { this.pages.forEach(url => URL.revokeObjectURL(url)); this.pages = []; }
                 document.getElementById('reader-screen').classList.add('hide');
                 document.getElementById('library-screen').classList.remove('hide');
                 UI.loadComics(); 
             },
-
             setupGestures() {
                 if (this.hammer) return; 
-
                 const container = document.getElementById('reader-container');
                 const img = document.getElementById('comic-page');
-                
                 this.hammer = new Hammer(container);
                 this.hammer.get('pinch').set({ enable: true });
                 this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL });
 
-                this.hammer.on('swipeleft', () => {
-                    if (this.scale === 1 && this.currentIndex < this.pages.length - 1) {
-                        this.currentIndex++;
-                        this.renderPage();
-                    }
-                });
-
-                this.hammer.on('swiperight', () => {
-                    if (this.scale === 1 && this.currentIndex > 0) {
-                        this.currentIndex--;
-                        this.renderPage();
-                    }
-                });
-
+                this.hammer.on('swipeleft', () => { if (this.scale === 1 && this.currentIndex < this.pages.length - 1) { this.currentIndex++; this.renderPage(); }});
+                this.hammer.on('swiperight', () => { if (this.scale === 1 && this.currentIndex > 0) { this.currentIndex--; this.renderPage(); }});
                 this.hammer.on('pinchstart', () => { this.lastScale = this.scale; });
-                this.hammer.on('pinch', (e) => {
-                    this.scale = Math.max(1, Math.min(this.lastScale * e.scale, 4)); 
-                    this.applyTransform(img);
-                });
-
-                this.hammer.on('panstart', () => {
-                    this.lastTranslateX = this.translateX;
-                    this.lastTranslateY = this.translateY;
-                });
-                this.hammer.on('pan', (e) => {
-                    if (this.scale > 1) {
-                        this.translateX = this.lastTranslateX + e.deltaX;
-                        this.translateY = this.lastTranslateY + e.deltaY;
-                        this.applyTransform(img);
-                    }
-                });
-
-                this.hammer.on('doubletap', () => {
-                    if (this.scale > 1) {
-                        this.resetZoom();
-                    } else {
-                        this.scale = 2; 
-                        this.applyTransform(img);
-                    }
-                });
+                this.hammer.on('pinch', (e) => { this.scale = Math.max(1, Math.min(this.lastScale * e.scale, 4)); this.applyTransform(img); });
+                this.hammer.on('panstart', () => { this.lastTranslateX = this.translateX; this.lastTranslateY = this.translateY; });
+                this.hammer.on('pan', (e) => { if (this.scale > 1) { this.translateX = this.lastTranslateX + e.deltaX; this.translateY = this.lastTranslateY + e.deltaY; this.applyTransform(img); }});
+                this.hammer.on('doubletap', () => { if (this.scale > 1) this.resetZoom(); else { this.scale = 2; this.applyTransform(img); }});
             },
-
-            applyTransform(el) {
-                el.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
-            },
-
+            applyTransform(el) { el.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`; },
             resetZoom() {
-                this.scale = 1;
-                this.lastScale = 1;
-                this.translateX = 0;
-                this.translateY = 0;
-                this.lastTranslateX = 0;
-                this.lastTranslateY = 0;
-                this.applyTransform(document.getElementById('comic-page'));
+                this.scale = 1; this.lastScale = 1; this.translateX = 0; this.translateY = 0;
+                this.lastTranslateX = 0; this.lastTranslateY = 0; this.applyTransform(document.getElementById('comic-page'));
             }
         };
 
-        /**
-         * 6. LÓGICA DE BACKUP E RECONCILIAÇÃO
-         */
         const Backup = {
             async export() {
                 const comics = await DB.getAllComics();
                 const exportData = comics.map(c => ({
-                    id: c.id,
-                    name: c.name,
-                    shelf: c.shelf,
-                    currentPage: c.currentPage,
-                    totalPages: c.totalPages,
-                    progress: c.progress,
-                    coverBlob: c.coverBlob
+                    id: c.id, name: c.name, shelf: c.shelf, currentPage: c.currentPage,
+                    totalPages: c.totalPages, progress: c.progress, coverBlob: c.coverBlob
                 }));
-
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
                 const anchor = document.createElement('a');
-                anchor.setAttribute("href", dataStr);
-                anchor.setAttribute("download", `gibiteca_backup_${new Date().toISOString().split('T')[0]}.json`);
-                document.body.appendChild(anchor);
-                anchor.click();
-                anchor.remove();
+                anchor.setAttribute("href", dataStr); anchor.setAttribute("download", `gibiteca_backup.json`);
+                document.body.appendChild(anchor); anchor.click(); anchor.remove();
             },
-
             async import(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-
+                const file = event.target.files[0]; if (!file) return;
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     try {
                         const importedComics = JSON.parse(e.target.result);
                         for (const comic of importedComics) {
-                            
-                            if (!App.shelves.includes(comic.shelf)) {
-                                App.shelves.push(comic.shelf);
-                            }
-
+                            if (!App.shelves.includes(comic.shelf)) App.shelves.push(comic.shelf);
                             const existing = await DB.getComic(comic.id);
-                            
                             if (existing) {
-                                existing.currentPage = comic.currentPage;
-                                existing.progress = comic.progress;
-                                existing.shelf = comic.shelf;
-                                await DB.saveComic(existing);
-                            } else {
-                                await DB.saveComic(comic);
-                            }
+                                existing.currentPage = comic.currentPage; existing.progress = comic.progress;
+                                existing.shelf = comic.shelf; await DB.saveComic(existing);
+                            } else await DB.saveComic(comic);
                         }
-                        App.saveShelves();
-                        App.showMessage('Sucesso', 'Backup restaurado com sucesso!');
-                        UI.renderShelves();
-                        UI.loadComics();
-                    } catch (err) {
-                        App.showMessage('Erro', 'Falha ao ler o arquivo de backup.');
-                        console.error(err);
-                    }
+                        App.saveShelves(); App.showMessage('Sucesso', 'Backup restaurado com sucesso!');
+                        UI.renderShelves(); UI.loadComics();
+                    } catch (err) { App.showMessage('Erro', 'Falha ao ler o arquivo de backup.'); }
                 };
                 reader.readAsText(file);
             }
         };
 
-        /**
-         * 7. LÓGICA DE INTERFACE (Renderização)
-         */
         const UI = {
             renderShelves() {
                 const nav = document.getElementById('shelf-nav');
                 nav.innerHTML = ''; 
-
                 App.shelves.forEach(shelf => {
                     const btn = document.createElement('button');
                     const isActive = (shelf === App.currentShelf);
@@ -811,7 +567,6 @@
                     btn.onclick = () => this.changeShelf(shelf);
                     nav.appendChild(btn);
                 });
-
                 const manageBtn = document.createElement('button');
                 manageBtn.className = 'text-gray-500 hover:text-gray-300 ml-4 transition-colors font-bold flex items-center justify-center shrink-0';
                 manageBtn.title = 'Gerenciar Estantes';
@@ -819,10 +574,16 @@
                 manageBtn.onclick = () => ShelvesManager.open();
                 nav.appendChild(manageBtn);
             },
-
+            
             changeShelf(shelfName) {
                 App.currentShelf = shelfName;
+                App.currentPage = 1; // Reseta a paginação ao trocar de estante
                 this.renderShelves(); 
+                this.renderGrid();
+            },
+            
+            changePage(direction) {
+                App.currentPage += direction;
                 this.renderGrid();
             },
 
@@ -842,34 +603,36 @@
                 if (filtered.length === 0) {
                     grid.innerHTML = `<div class="col-span-full text-center text-gray-500 mt-10 flex flex-col items-center">
                         <span class="text-4xl mb-4">🗂️</span>
-                        A estante "${App.currentShelf}" está vazia. <br> Adicione quadrinhos clicando no botão +
+                        A estante "${App.currentShelf}" está vazia.
                     </div>`;
+                    this.renderPagination(0);
                     return;
                 }
 
-                filtered.forEach(comic => {
-                    const coverSrc = comic.coverBlob && comic.coverBlob !== 'placeholder' 
-                                     ? comic.coverBlob 
-                                     : 'https://via.placeholder.com/300x450/374151/9CA3AF?text=Sem+Capa';
+                // LÓGICA DE PAGINAÇÃO (9 ITENS POR TELA)
+                const ITEMS_PER_PAGE = 9;
+                const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
+                
+                // Trava de segurança para limites de página
+                if (App.currentPage > totalPages) App.currentPage = totalPages;
+                if (App.currentPage < 1) App.currentPage = 1;
 
+                const startIndex = (App.currentPage - 1) * ITEMS_PER_PAGE;
+                const paginatedComics = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+                paginatedComics.forEach(comic => {
+                    const coverSrc = comic.coverBlob && comic.coverBlob !== 'placeholder' ? comic.coverBlob : 'https://via.placeholder.com/300x450/374151/9CA3AF?text=Sem+Capa';
                     const card = document.createElement('div');
-                    // h-full para alinhar o fim dos cards
-                    card.className = 'bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer transform hover:scale-105 transition-transform flex flex-col h-full relative group';
+                    card.className = 'bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer flex flex-col relative group transform hover:scale-105 transition-transform';
                     card.onclick = () => Reader.open(comic.id);
-                    
                     card.innerHTML = `
-                        <!-- Botão de Opções -->
                         <div class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="event.stopPropagation(); ComicActions.open('${comic.id}')" class="bg-black/70 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black font-bold shadow-md">⋮</button>
+                            <button onclick="event.stopPropagation(); ComicActions.open('${comic.id}')" class="bg-black/70 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black font-bold">⋮</button>
                         </div>
-
-                        <!-- Capa blindada com proporção exata de 2:3 (150% do padding) e shrink-0 -->
                         <div class="w-full relative shrink-0" style="padding-bottom: 150%;">
-                            <img src="${coverSrc}" class="absolute inset-0 w-full h-full object-cover" alt="Capa ${comic.name}">
+                            <img src="${coverSrc}" class="absolute inset-0 w-full h-full object-cover">
                         </div>
-                        
-                        <!-- Metadados blindados (shrink-0 e z-10 para não sumir) -->
-                        <div class="p-2 flex flex-col justify-between flex-1 bg-gray-800 z-10 shrink-0 min-h-[60px]">
+                        <div class="p-2 flex flex-col justify-between flex-1 bg-gray-800 z-10" style="min-height: 60px;">
                             <h3 class="text-xs sm:text-sm font-bold truncate" title="${comic.name}">${comic.name.replace(/\.cbz|\.cbr|\.zip|\.rar/gi, '')}</h3>
                             <div class="w-full mt-1">
                                 <div class="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
@@ -881,6 +644,31 @@
                     `;
                     grid.appendChild(card);
                 });
+
+                this.renderPagination(totalPages);
+            },
+
+            renderPagination(totalPages) {
+                const ctr = document.getElementById('pagination-controls');
+                if (totalPages <= 1) {
+                    ctr.classList.add('hide');
+                    return;
+                }
+                ctr.classList.remove('hide');
+                
+                const btnPrev = App.currentPage === 1 
+                    ? `<button disabled class="text-gray-600 cursor-not-allowed font-bold">&laquo; Anterior</button>`
+                    : `<button onclick="UI.changePage(-1)" class="text-blue-400 hover:text-blue-300 font-bold">&laquo; Anterior</button>`;
+                
+                const btnNext = App.currentPage === totalPages 
+                    ? `<button disabled class="text-gray-600 cursor-not-allowed font-bold">Próxima &raquo;</button>`
+                    : `<button onclick="UI.changePage(1)" class="text-blue-400 hover:text-blue-300 font-bold">Próxima &raquo;</button>`;
+
+                ctr.innerHTML = `
+                    ${btnPrev}
+                    <span class="text-gray-400 text-sm tracking-wide">Prateleira ${App.currentPage} de ${totalPages}</span>
+                    ${btnNext}
+                `;
             }
         };
 
@@ -888,10 +676,8 @@
             await DB.init();
             UI.renderShelves();
             UI.loadComics();
-            
             setTimeout(() => { Drive.init(); }, 1000); 
         };
-
     </script>
 </body>
 </html>
