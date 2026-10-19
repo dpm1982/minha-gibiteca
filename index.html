@@ -40,6 +40,72 @@
         #comic-page { transition: transform 0.1s ease-out; transform-origin: center center; will-change: transform; }
 
         .hide { display: none !important; }
+
+        /* 
+         * MODELO 3 COLUNAS x 3 LINHAS (PRATELEIRA)
+         * Garante sempre 3 colunas e impede o achatamento vertical dos cards
+         */
+        .shelf-grid-3x3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-auto-rows: max-content;
+            gap: 12px;
+            width: 100%;
+            max-width: clamp(340px, calc(65vh - 110px), 680px);
+            margin: 0 auto;
+            align-content: start;
+        }
+
+        .comic-card {
+            display: flex;
+            flex-direction: column;
+            background-color: #1f2937;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            position: relative;
+            height: auto;
+            min-height: max-content;
+            border: 1px solid #374151;
+            transition: transform 0.15s ease-in-out;
+        }
+
+        .comic-card:hover {
+            transform: scale(1.02);
+        }
+
+        /* Caixa da capa em proporção estritamente vertical (2:3) */
+        .comic-cover-box {
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            background-color: #111827;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+            overflow: hidden;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .comic-cover-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Rodapé fixo do card: Nome da revista + Barra de Progresso sempre visíveis */
+        .comic-meta-box {
+            padding: 6px 8px;
+            background-color: #1f2937;
+            border-bottom-left-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 52px;
+            min-height: 52px;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body class="fixed inset-0 flex flex-col font-sans overflow-hidden">
@@ -90,35 +156,37 @@
     <main id="library-screen" class="flex-1 flex flex-col min-h-0 relative">
         
         <!-- Cabeçalho -->
-        <header class="bg-gray-800 p-4 shadow-md flex justify-between items-center z-10 shrink-0">
+        <header class="bg-gray-800 px-4 py-3 shadow-md flex justify-between items-center z-10 shrink-0">
             <div class="flex items-center gap-3">
                 <img src="icon.svg" alt="Gibiteca Icon" class="w-8 h-8 drop-shadow-md">
                 <h1 class="text-xl font-bold tracking-wider hidden sm:block">GIBITECA</h1>
             </div>
-            <div class="flex gap-3 items-center">
-                <button onclick="App.toggleFullScreen()" class="text-white hover:text-gray-300 transition-colors text-xl mr-2" title="Tela Cheia">⛶</button>
-                <button onclick="Backup.export()" class="text-xs sm:text-sm bg-gray-700 px-3 py-2 rounded hover:bg-gray-600 transition-colors">Exportar</button>
-                <button onclick="document.getElementById('import-file').click()" class="text-xs sm:text-sm bg-gray-700 px-3 py-2 rounded hover:bg-gray-600 transition-colors">Importar</button>
+            <div class="flex gap-2 sm:gap-3 items-center">
+                <button onclick="App.toggleFullScreen()" class="text-white hover:text-gray-300 transition-colors text-xl mr-1" title="Tela Cheia">⛶</button>
+                <button onclick="Backup.export()" class="text-xs sm:text-sm bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-600 transition-colors">Exportar</button>
+                <button onclick="document.getElementById('import-file').click()" class="text-xs sm:text-sm bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-600 transition-colors">Importar</button>
                 <input type="file" id="import-file" class="hidden" accept=".json" onchange="Backup.import(event)">
-                <button id="auth-btn" class="text-xs sm:text-sm bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded font-semibold transition-colors">Conectar Drive</button>
+                <button id="auth-btn" class="text-xs sm:text-sm bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded font-semibold transition-colors">Conectar Drive</button>
             </div>
         </header>
 
         <!-- Navegação de Estantes -->
         <nav id="shelf-nav" class="bg-gray-900 border-b border-gray-700 overflow-x-auto whitespace-nowrap px-4 py-2 flex items-center gap-6 shrink-0"></nav>
 
-        <!-- Grade de Quadrinhos (Ajustada para o limite de 9 itens em formato 3x3) -->
-        <div id="comics-grid" class="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 content-start">
-            <!-- Cards gerados via JS -->
+        <!-- Área da Prateleira (Scroll suave caso a tela seja muito baixa, mantendo proporção 3x3 vertical) -->
+        <div class="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4">
+            <div id="comics-grid" class="shelf-grid-3x3 pb-4">
+                <!-- Cards gerados via JS -->
+            </div>
         </div>
 
-        <!-- Botão Flutuante (Add) reposicionado para não tampar o rodapé -->
-        <button id="add-comic-btn" class="absolute bottom-16 right-6 bg-blue-600 w-14 h-14 rounded-full shadow-lg text-white text-3xl font-light flex items-center justify-center hover:bg-blue-500 hover:scale-105 transition-transform z-20">
+        <!-- Botão Flutuante (Adicionar do Drive) -->
+        <button id="add-comic-btn" class="absolute bottom-14 right-5 bg-blue-600 w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg text-white text-3xl font-light flex items-center justify-center hover:bg-blue-500 hover:scale-105 transition-transform z-20">
             +
         </button>
 
         <!-- RODAPÉ DE PAGINAÇÃO (PRATELEIRAS) -->
-        <div id="pagination-controls" class="bg-gray-800 border-t border-gray-700 p-2 flex justify-between items-center shrink-0 hide z-10">
+        <div id="pagination-controls" class="bg-gray-800 border-t border-gray-700 px-4 py-2 flex justify-between items-center shrink-0 z-10">
             <!-- Botões injetados via JS -->
         </div>
     </main>
@@ -155,10 +223,11 @@
     <script>
         /**
          * CONFIGURAÇÕES DO GOOGLE
+         * ATENÇÃO: SUBSTITUA PELAS SUAS CHAVES ANTES DE SALVAR NO GITHUB
          */
         const GOOGLE_CONFIG = {
             CLIENT_ID: '1073647170468-alkgv60idbapacpttvikj6r6pejlsaod.apps.googleusercontent.com',
-            API_KEY: 'AIzaSyB2zSljUyWrO_uMnXiqLPB3e0avIw_VIMI',
+            API_KEY: 'AIzaSyA15zge-yfoUmQFPnbOZK98qxYOb0n4Q8E',
             APP_ID: '1073647170468',
             SCOPES: 'https://www.googleapis.com/auth/drive.readonly'
         };
@@ -167,7 +236,7 @@
         const App = {
             shelves: JSON.parse(localStorage.getItem('gibiteca_shelves')) || ['Marvel', 'DC', 'Vertigo', 'Mangás'],
             currentShelf: '',
-            currentPage: 1, // NOVO: Controle da prateleira atual
+            currentPage: 1,
             comics: [],
             
             saveShelves() {
@@ -191,7 +260,7 @@
 
         App.currentShelf = App.shelves.length > 0 ? App.shelves[0] : '';
 
-        // Banco de Dados
+        // Banco de Dados (IndexedDB)
         const DB = {
             db: null,
             init() {
@@ -204,7 +273,7 @@
                         }
                     };
                     request.onsuccess = (e) => { this.db = e.target.result; resolve(); };
-                    request.onerror = (e) => reject('Erro no IndexedDB');
+                    request.onerror = () => reject('Erro no IndexedDB');
                 });
             },
             async saveComic(comicData) {
@@ -241,6 +310,7 @@
             }
         };
 
+        // Gerenciador de Estantes
         const ShelvesManager = {
             open() { this.render(); document.getElementById('shelf-manager-modal').classList.remove('hide'); },
             close() { document.getElementById('shelf-manager-modal').classList.add('hide'); },
@@ -309,6 +379,7 @@
             }
         };
 
+        // Ações do Quadrinho
         const ComicActions = {
             currentId: null,
             async open(id) {
@@ -342,6 +413,7 @@
             }
         };
 
+        // Integração Google Drive
         const Drive = {
             tokenClient: null, accessToken: null,
             init() {
@@ -425,6 +497,7 @@
             }
         };
 
+        // Leitor de Quadrinhos
         const Reader = {
             currentComicId: null, pages: [], currentIndex: 0, hammer: null,
             scale: 1, lastScale: 1, translateX: 0, translateY: 0, lastTranslateX: 0, lastTranslateY: 0,
@@ -470,7 +543,7 @@
                     document.getElementById('comic-page').classList.remove('hide');
                     this.renderPage();
                 } catch (error) {
-                    App.showMessage('Erro de Leitura', 'Erro ao carregar arquivo. Pode estar corrompido.');
+                    App.showMessage('Erro de Leitura', 'Erro ao carregar arquivo. Verifique sua conexão com o Drive.');
                     this.close();
                 }
             },
@@ -521,6 +594,7 @@
             }
         };
 
+        // Backup (Exportar / Importar)
         const Backup = {
             async export() {
                 const comics = await DB.getAllComics();
@@ -555,6 +629,7 @@
             }
         };
 
+        // Interface e Renderização (3x3 por Prateleira)
         const UI = {
             renderShelves() {
                 const nav = document.getElementById('shelf-nav');
@@ -577,7 +652,7 @@
             
             changeShelf(shelfName) {
                 App.currentShelf = shelfName;
-                App.currentPage = 1; // Reseta a paginação ao trocar de estante
+                App.currentPage = 1;
                 this.renderShelves(); 
                 this.renderGrid();
             },
@@ -601,19 +676,18 @@
                 const filtered = App.comics.filter(c => c.shelf === App.currentShelf);
 
                 if (filtered.length === 0) {
-                    grid.innerHTML = `<div class="col-span-full text-center text-gray-500 mt-10 flex flex-col items-center">
+                    grid.innerHTML = `<div class="col-span-3 text-center text-gray-500 mt-10 flex flex-col items-center">
                         <span class="text-4xl mb-4">🗂️</span>
                         A estante "${App.currentShelf}" está vazia.
                     </div>`;
-                    this.renderPagination(0);
+                    this.renderPagination(1, 0);
                     return;
                 }
 
-                // LÓGICA DE PAGINAÇÃO (9 ITENS POR TELA)
+                // 3 COLUNAS x 3 LINHAS = 9 REVISTAS POR PRATELEIRA
                 const ITEMS_PER_PAGE = 9;
                 const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
                 
-                // Trava de segurança para limites de página
                 if (App.currentPage > totalPages) App.currentPage = totalPages;
                 if (App.currentPage < 1) App.currentPage = 1;
 
@@ -621,52 +695,55 @@
                 const paginatedComics = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
                 paginatedComics.forEach(comic => {
-                    const coverSrc = comic.coverBlob && comic.coverBlob !== 'placeholder' ? comic.coverBlob : 'https://via.placeholder.com/300x450/374151/9CA3AF?text=Sem+Capa';
+                    const coverSrc = comic.coverBlob && comic.coverBlob !== 'placeholder' 
+                        ? comic.coverBlob 
+                        : 'https://via.placeholder.com/300x450/374151/9CA3AF?text=Sem+Capa';
+                    
+                    const cleanTitle = comic.name.replace(/\.cbz|\.cbr|\.zip|\.rar/gi, '');
+                    const progressVal = comic.progress || 0;
+
                     const card = document.createElement('div');
-                    card.className = 'bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer flex flex-col relative group transform hover:scale-105 transition-transform';
+                    card.className = 'comic-card group';
                     card.onclick = () => Reader.open(comic.id);
                     card.innerHTML = `
-                        <div class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="event.stopPropagation(); ComicActions.open('${comic.id}')" class="bg-black/70 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black font-bold">⋮</button>
+                        <div class="absolute top-1.5 right-1.5 z-20 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <button onclick="event.stopPropagation(); ComicActions.open('${comic.id}')" class="bg-black/75 text-white rounded-full w-7 h-7 flex items-center justify-center hover:bg-black font-bold text-sm shadow">⋮</button>
                         </div>
-                        <div class="w-full relative shrink-0" style="padding-bottom: 150%;">
-                            <img src="${coverSrc}" class="absolute inset-0 w-full h-full object-cover">
+                        <div class="comic-cover-box">
+                            <img src="${coverSrc}" alt="Capa ${cleanTitle}">
                         </div>
-                        <div class="p-2 flex flex-col justify-between flex-1 bg-gray-800 z-10" style="min-height: 60px;">
-                            <h3 class="text-xs sm:text-sm font-bold truncate" title="${comic.name}">${comic.name.replace(/\.cbz|\.cbr|\.zip|\.rar/gi, '')}</h3>
-                            <div class="w-full mt-1">
+                        <div class="comic-meta-box">
+                            <h3 class="text-xs font-bold text-gray-100 truncate leading-tight" title="${cleanTitle}">${cleanTitle}</h3>
+                            <div class="w-full">
                                 <div class="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
-                                    <div class="h-full bg-blue-500" style="width: ${comic.progress || 0}%"></div>
+                                    <div class="h-full bg-blue-500" style="width: ${progressVal}%"></div>
                                 </div>
-                                <p class="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 text-right leading-none">${comic.progress || 0}%</p>
+                                <p class="text-[10px] text-gray-400 mt-1 text-right leading-none">${progressVal}%</p>
                             </div>
                         </div>
                     `;
                     grid.appendChild(card);
                 });
 
-                this.renderPagination(totalPages);
+                this.renderPagination(totalPages, filtered.length);
             },
 
-            renderPagination(totalPages) {
+            renderPagination(totalPages, totalItems) {
                 const ctr = document.getElementById('pagination-controls');
-                if (totalPages <= 1) {
-                    ctr.classList.add('hide');
-                    return;
-                }
-                ctr.classList.remove('hide');
                 
-                const btnPrev = App.currentPage === 1 
-                    ? `<button disabled class="text-gray-600 cursor-not-allowed font-bold">&laquo; Anterior</button>`
-                    : `<button onclick="UI.changePage(-1)" class="text-blue-400 hover:text-blue-300 font-bold">&laquo; Anterior</button>`;
+                const btnPrev = App.currentPage <= 1 
+                    ? `<button disabled class="text-gray-600 cursor-not-allowed font-bold text-xs sm:text-sm px-2 py-1">&laquo; Anterior</button>`
+                    : `<button onclick="UI.changePage(-1)" class="text-blue-400 hover:text-blue-300 font-bold text-xs sm:text-sm px-2 py-1">&laquo; Anterior</button>`;
                 
-                const btnNext = App.currentPage === totalPages 
-                    ? `<button disabled class="text-gray-600 cursor-not-allowed font-bold">Próxima &raquo;</button>`
-                    : `<button onclick="UI.changePage(1)" class="text-blue-400 hover:text-blue-300 font-bold">Próxima &raquo;</button>`;
+                const btnNext = App.currentPage >= totalPages 
+                    ? `<button disabled class="text-gray-600 cursor-not-allowed font-bold text-xs sm:text-sm px-2 py-1">Próxima &raquo;</button>`
+                    : `<button onclick="UI.changePage(1)" class="text-blue-400 hover:text-blue-300 font-bold text-xs sm:text-sm px-2 py-1">Próxima &raquo;</button>`;
 
                 ctr.innerHTML = `
                     ${btnPrev}
-                    <span class="text-gray-400 text-sm tracking-wide">Prateleira ${App.currentPage} de ${totalPages}</span>
+                    <span class="text-gray-300 text-xs sm:text-sm font-medium tracking-wide">
+                        Prateleira ${App.currentPage} de ${totalPages} <span class="text-gray-500 text-xs">(${totalItems} HQs)</span>
+                    </span>
                     ${btnNext}
                 `;
             }
